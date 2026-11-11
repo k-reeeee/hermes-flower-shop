@@ -33,6 +33,9 @@ export function OnboardingTypeCard({ streaming }) {
   if (!data) return note('Loading the business question...')
   const pick = async t => {
     try {
+      // (1) Persist the column so GET /onboarding.profile.business_type reflects the pick (backend update() supports partial PUTs).
+      await act.mutateAsync({ path: '/profile', method: 'PUT', body: { business_name: (data.profile && data.profile.business_name) || '', business_type: t.value, currency: (data.profile && data.profile.currency) || 'IDR', timezone: (data.profile && data.profile.timezone) || 'Asia/Jakarta' } })
+      // (2) Record the beat so current_step advances and the receipt shows.
       await act.mutateAsync({ path: '/onboarding/beat', body: { beat: 'business', answer: data.profile ? { ...data.profile, business_type: t.value } : { business_type: t.value } } })
     } catch (e) { /* the agent reads the receipt; silent here */ }
   }

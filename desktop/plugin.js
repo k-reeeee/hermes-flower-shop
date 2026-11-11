@@ -32491,13 +32491,13 @@ function propAssembly() {
   g.add(M(new CylinderGeometry(0.13, 0.17, 0.52, 8), mat(PALETTE.woodDark), { p: [0, 0.4, 0] }));
   g.add(M(new CylinderGeometry(0.3, 0.3, 0.05, 12), mat(PALETTE.wood), { p: [0, 0.32, 0] }));
   g.add(M(new CylinderGeometry(0.56, 0.56, 0.1, 16), mat(PALETTE.wood), { p: [0, 0.71, 0] }));
-  g.add(M(new CylinderGeometry(0.13, 0.13, 0.17, 12), mat(PALETTE.ribbon), { p: [-0.26, 0.85, 0.12] }));
-  g.add(M(new CylinderGeometry(0.17, 0.17, 0.025, 12), mat(PALETTE.wood), { p: [-0.26, 0.76, 0.12] }));
-  g.add(M(new CylinderGeometry(0.17, 0.17, 0.025, 12), mat(PALETTE.wood), { p: [-0.26, 0.94, 0.12] }));
+  g.add(M(new CylinderGeometry(0.13, 0.13, 0.17, 12), mat(PALETTE.ribbon), { p: [-0.3, 0.85, -0.05] }));
+  g.add(M(new CylinderGeometry(0.17, 0.17, 0.025, 12), mat(PALETTE.wood), { p: [-0.3, 0.76, -0.05] }));
+  g.add(M(new CylinderGeometry(0.17, 0.17, 0.025, 12), mat(PALETTE.wood), { p: [-0.3, 0.94, -0.05] }));
   g.add(M(
     new TorusGeometry(0.1, 0.02, 5, 12, Math.PI * 0.9),
     mat(PALETTE.ribbon),
-    { p: [-0.05, 0.77, 0.22], r: [-Math.PI / 2, 0, 0.4] }
+    { p: [-0.08, 0.77, 0.12], r: [-Math.PI / 2, 0, 0.4] }
   ));
   g.add(M(
     new CylinderGeometry(0.09, 0.07, 0.15, 8),
@@ -32519,13 +32519,27 @@ function propAssembly() {
     ));
     g.add(blob(cols[i], 0.09, { p: [0.3 + Math.cos(a) * 0.1, 1.2 + i % 2 * 0.05, -0.12 + Math.sin(a) * 0.1] }));
   }
-  g.add(M(new BoxGeometry(0.03, 0.2, 0.015), mat("#b8c3cb"), { p: [-0.3, 0.8, 0.24], r: [0, 0, 0.5] }));
-  g.add(M(new BoxGeometry(0.03, 0.2, 0.015), mat("#b8c3cb"), { p: [-0.3, 0.8, 0.24], r: [0, 0, -0.5] }));
-  g.add(M(new TorusGeometry(0.035, 0.012, 5, 10), mat(PALETTE.ribbon), { p: [-0.36, 0.72, 0.24] }));
-  g.add(M(new TorusGeometry(0.035, 0.012, 5, 10), mat(PALETTE.ribbon), { p: [-0.24, 0.72, 0.24] }));
-  g.add(M(new TorusGeometry(0.08, 0.035, 6, 14), mat(PALETTE.awningRose), { p: [0.02, 0.79, 0.3], r: [Math.PI / 2, 0, 0] }));
-  g.add(M(new BoxGeometry(0.04, 0.02, 0.22), mat("#b8c3cb"), { p: [-0.4, 0.78, -0.18], r: [0, 0.5, 0] }));
-  g.add(M(new BoxGeometry(0.05, 0.035, 0.1), mat(PALETTE.ribbon), { p: [-0.47, 0.785, -0.27], r: [0, 0.5, 0] }));
+  const toolMetal = mat("#c9d2d8");
+  const sc = new Group();
+  sc.position.set(-0.24, 0.79, 0.32);
+  sc.rotation.set(-Math.PI / 2, 0, 0.6);
+  sc.add(M(new BoxGeometry(0.04, 0.28, 0.022), toolMetal, { p: [0, 0.07, 0], r: [0, 0, 0.35] }));
+  sc.add(M(new BoxGeometry(0.04, 0.28, 0.022), toolMetal, { p: [0, 0.07, 0], r: [0, 0, -0.35] }));
+  sc.add(M(new TorusGeometry(0.05, 0.018, 6, 12), mat(PALETTE.ribbon), { p: [-0.06, -0.07, 0] }));
+  sc.add(M(new TorusGeometry(0.05, 0.018, 6, 12), mat(PALETTE.ribbon), { p: [0.06, -0.07, 0] }));
+  g.add(sc);
+  g.add(M(
+    new TorusGeometry(0.09, 0.04, 7, 16),
+    mat(PALETTE.awningRose),
+    { p: [0.04, 0.89, 0.3], r: [0, 0, 0], s: [1, 1, 1] }
+  ));
+  g.add(M(
+    new CylinderGeometry(0.055, 0.055, 0.05, 10),
+    mat(PALETTE.cream),
+    { p: [0.04, 0.89, 0.3], r: [Math.PI / 2, 0, 0] }
+  ));
+  g.add(M(new BoxGeometry(0.055, 0.028, 0.32), toolMetal, { p: [0.4, 0.78, 0.16], r: [0, -0.5, 0] }));
+  g.add(M(new BoxGeometry(0.065, 0.05, 0.14), mat(PALETTE.ribbon), { p: [0.5, 0.787, 0.27], r: [0, -0.5, 0] }));
   for (let i = 0; i < 3; i++) {
     g.add(blob(PALETTE.awningRose, 0.05, { p: [-0.08 + i * 0.16, 0.77, 0.02 + i % 2 * 0.12], s: [1, 0.4, 1] }));
   }
@@ -32837,25 +32851,21 @@ function makeButterfly(hex = PALETTE.awningRose) {
       mat(PALETTE.white),
       { p: [sx * 0.019, 0.032, 0.128], cast: false }
     ));
-    g.add(M(
-      new CylinderGeometry(8e-3, 8e-3, 0.13, 5),
-      bodyMat,
-      { p: [sx * 0.03, 0.09, 0.14], r: [-0.7, 0, sx * 0.4] }
-    ));
-    g.add(M(
-      new SphereGeometry(0.02, 7, 5),
-      mat(PALETTE.yolk),
-      { p: [sx * 0.052, 0.152, 0.172], cast: false }
-    ));
+    const ant = new Group();
+    ant.position.set(sx * 0.02, 0.085, 0.11);
+    ant.rotation.set(0.75, 0, -sx * 0.45);
+    ant.add(M(new CylinderGeometry(8e-3, 8e-3, 0.13, 5), bodyMat, { p: [0, 0.065, 0], cast: false }));
+    ant.add(M(new SphereGeometry(0.02, 7, 5), mat(PALETTE.yolk), { p: [0, 0.14, 0], cast: false }));
+    g.add(ant);
   }
   const wingMat = mat(hex, { side: DoubleSide });
   for (const sx of [-1, 1]) {
-    const fore = new IcosahedronGeometry(0.12, 0);
-    fore.scale(1.3, 0.16, 0.9);
-    fore.translate(sx * 0.16, 0, -0.03);
-    const hind = new IcosahedronGeometry(0.085, 0);
-    hind.scale(1.05, 0.16, 0.85);
-    hind.translate(sx * 0.11, 0, -0.14);
+    const fore = new IcosahedronGeometry(0.125, 0);
+    fore.scale(1.3, 0.16, 0.85);
+    fore.translate(sx * 0.17, 5e-3, -0.02);
+    const hind = new IcosahedronGeometry(0.08, 0);
+    hind.scale(1, 0.16, 0.8);
+    hind.translate(sx * 0.1, -0.012, -0.19);
     const wing = M(
       mergeGeometries([fore, hind]),
       wingMat,
@@ -32863,9 +32873,9 @@ function makeButterfly(hex = PALETTE.awningRose) {
     );
     wing.rotation.z = sx < 0 ? -0.38 : 0.38;
     wing.add(M(
-      new IcosahedronGeometry(0.03, 0),
+      new IcosahedronGeometry(0.04, 0),
       mat(PALETTE.cream),
-      { p: [sx * 0.07, 0.02, -0.03], s: [1, 0.4, 1], cast: false }
+      { p: [sx * 0.09, 0.03, -0.02], s: [1, 0.35, 1], cast: false }
     ));
     g.add(wing);
   }
@@ -34763,6 +34773,7 @@ function OnboardingTypeCard({ streaming }) {
   if (!data) return note2("Loading the business question...");
   const pick = async (t) => {
     try {
+      await act.mutateAsync({ path: "/profile", method: "PUT", body: { business_name: data.profile && data.profile.business_name || "", business_type: t.value, currency: data.profile && data.profile.currency || "IDR", timezone: data.profile && data.profile.timezone || "Asia/Jakarta" } });
       await act.mutateAsync({ path: "/onboarding/beat", body: { beat: "business", answer: data.profile ? { ...data.profile, business_type: t.value } : { business_type: t.value } } });
     } catch (e) {
     }
