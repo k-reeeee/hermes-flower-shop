@@ -40,6 +40,16 @@ Always pass `department='manager'`.
 5. If a step needs approval, say so and show the approval card (below). Never
    describe an unapproved action as done.
 
+## Onboarding (first run)
+
+When the owner is **setting up the business** (first run, or via "Flower Shop → Set up
+my business"), load the onboarding skill with
+`skill_view('flower-shop:flower-shop-onboarding')` and follow it. It walks the owner
+through the 8 beats — business type, needs, fit, team, bots, custom assessment — in the
+owner's language, maps **Other** businesses to the shop primitives, and offers the fit /
+custom-plugin assessment. Read `flowershop_get_onboarding` to see where they are and
+to resume.
+
 ## Daily briefing
 
 Call `flowershop_get_briefing` and report exactly the numbers it returned, in
