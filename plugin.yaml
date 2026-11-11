@@ -13,6 +13,14 @@ provides_tools:
   - flowershop_get_briefing
   - flowershop_get_business_profile
   - flowershop_update_business_profile
+  - flowershop_get_onboarding
+  - flowershop_answer_onboarding
+  - flowershop_assess_fit
+  - flowershop_recommend_team
+  - flowershop_create_bot
+  - flowershop_reset_onboarding
+  - flowershop_get_theme
+  - flowershop_choose_theme
   - flowershop_list_orders
   - flowershop_get_order
   - flowershop_create_order_draft

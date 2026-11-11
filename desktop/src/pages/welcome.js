@@ -57,7 +57,7 @@ async function openWelcomeChat() {
 
 function WelcomeCta({ q, busy, onBegin }) {
   const done = q.data ? q.data.steps.filter(s => s.done).length : 0
-  const total = q.data ? q.data.steps.length : 8
+  const total = q.data ? q.data.steps.length : 9
   return h(
     'div',
     { className: 'fs-hero', style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14, maxWidth: 640 } },
@@ -256,7 +256,7 @@ function SetUpAgainControl() {
       open: true,
       onClose: () => setConfirm(false),
       title: 'Set up again?',
-      description: 'This discards your onboarding answers (needs, fit, team, bots) and starts the setup flow over. Your business records - orders, stock and money - are kept.',
+      description: 'This discards your onboarding answers (needs, fit, team, bots, theme) and starts the setup flow over. Your business records - orders, stock and money - are kept.',
       confirmLabel: 'Set up again',
       onConfirm: run
     }) : null

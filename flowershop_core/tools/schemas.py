@@ -28,6 +28,8 @@ DEFAULT_DEPARTMENTS = {
     "flowershop_recommend_team": "manager",
     "flowershop_create_bot": "manager",
     "flowershop_reset_onboarding": "manager",
+    "flowershop_get_theme": "manager",
+    "flowershop_choose_theme": "manager",
     "flowershop_list_orders": "sales",
     "flowershop_get_order": "sales",
     "flowershop_create_order_draft": "sales",
@@ -118,21 +120,22 @@ SCHEMAS: dict[str, dict] = {
     "flowershop_get_onboarding": {
         "name": "flowershop_get_onboarding",
         "description": "Return the full business-onboarding state: profile, needs, fit, bots, custom_plugin, "
-                       "the 8 beats with their done/answer, and whether onboarding is complete. "
+                       "the 9 beats with their done/answer (the theme beat is optional and never blocks "
+                       "completion), and whether onboarding is complete. "
                        "Read this before or while walking the owner through setup.",
         "parameters": {"type": "object", "properties": {"department": _dept("manager")}},
     },
     "flowershop_answer_onboarding": {
         "name": "flowershop_answer_onboarding",
         "description": "Record the owner's answer to one onboarding beat. Beat is one of: welcome, business, "
-                       "needs, fit, team, bots, custom, first_result. Use 'needs' when the owner picks the "
+                       "needs, fit, team, bots, custom, theme, first_result. Use 'needs' when the owner picks the "
                        "multi-select needs card (a list of needs), 'team' for the department toggles (a list "
                        "of departments), 'bots' for the bot choices (a list of {name, profile}), 'custom' for "
                        "the custom-plugin assessment (a dict). Returns the full updated state. "
                        "Consequential actions still require owner approval.",
         "parameters": {"type": "object", "properties": {
             "beat": {"type": "string", "enum": ["welcome", "business", "needs", "fit", "team", "bots",
-                                                "custom", "first_result"]},
+                                                "custom", "theme", "first_result"]},
             "answer": {"type": ["string", "array", "object", "null"],
                        "description": "The owner's answer for this beat."},
             "department": _dept("manager"),
@@ -150,6 +153,30 @@ SCHEMAS: dict[str, dict] = {
                       "description": "The owner's selected needs."},
             "department": _dept("manager"),
         }},
+    },
+    "flowershop_get_theme": {
+        "name": "flowershop_get_theme",
+        "description": "Read the garden-theme offer for the onboarding theme beat: the bundled themes "
+                       "(anthousa = marble daylight, anthousa-night = aubergine dusk), which of them are "
+                       "installed, which skin is active right now, the skin an undo would return to, and "
+                       "whether the owner already answered. Read-only. Never describe the theme as applied: "
+                       "the plugin never switches a theme by itself.",
+        "parameters": {"type": "object", "properties": {"department": _dept("manager")}},
+    },
+    "flowershop_choose_theme": {
+        "name": "flowershop_choose_theme",
+        "description": "Record the owner's answer to the theme offer, only after they have actually said it. "
+                       "choice 'apply' with a theme name (anthousa or anthousa-night) prepares the skin files "
+                       "and returns 'activate'; choice 'keep' changes nothing. This tool only prepares and "
+                       "records — it never switches the theme. Put the returned directive on its own line: the "
+                       "owner's click there is what applies it. Do not call this unless the owner asked.",
+        "parameters": {"type": "object", "properties": {
+            "choice": {"type": "string", "enum": ["apply", "keep"],
+                       "description": "'apply' to prepare the switch, 'keep' to stay on the current theme."},
+            "theme": {"type": "string", "enum": ["anthousa", "anthousa-night"],
+                      "description": "Which bundled theme. Required when choice is 'apply'."},
+            "department": _dept("manager"),
+        }, "required": ["choice"]},
     },
     "flowershop_recommend_team": {
         "name": "flowershop_recommend_team",
@@ -530,6 +557,8 @@ TOOL_NAMES = [
     "flowershop_recommend_team",
     "flowershop_create_bot",
     "flowershop_reset_onboarding",
+    "flowershop_get_theme",
+    "flowershop_choose_theme",
     "flowershop_list_orders",
     "flowershop_get_order",
     "flowershop_create_order_draft",

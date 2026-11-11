@@ -181,6 +181,9 @@ InventoryCategory flower, foliage, wrapping, ribbon, card, vase, other
 | PUT `/profile` | partial BusinessProfile | BusinessProfile |
 | GET `/onboarding` | | `{complete, steps:[{id,title,description,done,optional}]}` — step ids: `profile, departments, data, channels, team, first_result` |
 | POST `/onboarding/{step}/complete` | `{data?}` | onboarding object |
+| GET `/theme` | | `{available, bundled:[{name,title,tone,polarity,description}], installed, active, previous, choice}` — the bundled garden skin offer |
+| POST `/theme` | `{choice:"apply"\|"keep", theme?}` | `{activate, choice, copied, unchanged, state}` — prepares the skin and returns the name the client hands to Hermes' `config.set {key:"skin"}`; it never switches it |
+| POST `/theme/revert` | | `{revert_to}` — the skin to switch back to |
 | POST `/demo/seed` | `{reset?: bool}` | `{seeded: true, counts}` (marks rows `is_demo=1`) |
 | POST `/demo/clear` | | `{removed: counts}` — deletes ONLY `is_demo=1` rows |
 | GET `/overview` | | see below |
@@ -279,6 +282,8 @@ Every tool:
 | `flowershop_get_briefing` | read | overview (daily briefing) |
 | `flowershop_get_business_profile` | read | profile + onboarding |
 | `flowershop_update_business_profile` | write (direct, audited) | profile.update |
+| `flowershop_get_theme` | read | theme.state — bundled / installed / active / previous / recorded choice |
+| `flowershop_choose_theme` | write (direct) | theme.apply_choice — prepares the skin and returns the directive the owner clicks to apply |
 | `flowershop_list_orders` | read | orders.list |
 | `flowershop_get_order` | read | orders.get |
 | `flowershop_create_order_draft` | write (direct) | orders.create_draft |

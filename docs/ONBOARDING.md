@@ -22,7 +22,7 @@ Hermes' own first-run onboarding (`agent/onboarding_*.py`, `tools/setup_beat_too
 
 ---
 
-## 2. The experience (8 beats)
+## 2. The experience (9 beats — 8 required, 1 optional)
 
 | # | Beat | What the owner hears | Card / write |
 |---|------|----------------------|--------------|
@@ -33,7 +33,8 @@ Hermes' own first-run onboarding (`agent/onboarding_*.py`, `tools/setup_beat_too
 | 5 | **Team** | "Based on that, here's the team I recommend. Toggle any you don't need." | **Card: team** — department toggles, pre-checked from needs → `flowershop_update_business_profile` |
 | 6 | **Bots** | "Want bot profiles for your business? Each is a separate AI assistant." | **Card: bots** — One business assistant · One per department · Skip → `flowershop_create_bot` |
 | 7 | **Custom** | "Does Flower Shop cover your business?" | **Card: fit assessment** — "you're set" or "here's what's missing" → `flowershop_assess_fit` |
-| 8 | **First result** | "Here's your first daily briefing." | `::flowershop-briefing{}` → `onboarding_complete` |
+| 8 | **Theme** *(optional)* | "Want the shop to look like ours? Here's our garden theme — or keep everything exactly as it is." | **Card: theme** — both variants + **Keep my current theme** → `flowershop_choose_theme` prepares the skin → the owner's click calls Hermes' `config.set {key: "skin"}` |
+| 9 | **First result** | "Here's your first daily briefing." | `::flowershop-briefing{}` → `onboarding_complete` |
 
 ### The "Other" path (base for any business)
 
@@ -42,6 +43,29 @@ When the owner picks **Other**, the agent asks what they do and maps the primiti
 > "You run a bakery → **orders** = custom cake orders, **inventory** = ingredients, **production** = baking, **delivery** = cake delivery, **finance** = payments."
 
 The fit assessment (beat 7) then judges whether that mapping holds. If it does, the owner is set. If not, beat 7 names the gap and offers a custom skill/plugin.
+
+### The theme beat is an offer, not a change (beat 8)
+
+Flower Shop ships its own skin — **Anthousa**, in marble daylight (`anthousa`) and aubergine dusk
+(`anthousa-night`) — and this beat is where it is introduced. One rule shapes the whole design:
+
+> **Installing Flower Shop never changes anyone's theme.** No install hook, no first-run action,
+> no default. A theme that switches itself is the kind of surprise that makes people distrust a
+> plugin, and it is not our window to redecorate.
+
+So the beat only offers:
+
+- Both variants, one line each, with **Keep my current theme** sitting right beside them as a
+  perfectly good answer.
+- Choosing a variant *prepares* the skin: the two YAMLs are copied into the Hermes skins
+  directory, and the choice is recorded together with **the skin that was active beforehand**.
+- The switch itself is the owner's click — Hermes' own `config.set {key: "skin"}` RPC does it, the
+  same path `/skin` uses, which writes `display.skin` and broadcasts the repaint to every surface.
+- While a bundled theme is active an **Undo** is offered, which switches straight back.
+- `keep` writes nothing to disk at all.
+
+If the owner never reaches the beat, or declines it, setup is still **complete**: the theme is the
+one optional beat and is excluded from the completeness gate.
 
 ---
 
@@ -70,7 +94,11 @@ Extend `business_profile` (migration `000X_onboarding.sql`):
 | `bots` | TEXT (JSON array) | `[{name, profile, status}]` |
 | `custom_plugin` | TEXT (JSON object) | `{needed: bool, reasons: [...], offer: "..."}` |
 
-`onboarding_json` gains a `beats` object: `{beat_id: {"done": ts, "answer": ...}}`.
+`onboarding_json` gains a `beats` object: `{beat_id: {"done": ts, "answer": ...}}`, plus a `theme`
+object for the recorded offer: `{"choice": "apply"|"keep", "theme": <skin>, "previous_skin":
+<skin>, "installed": [...], "at": ts}` (and later `"reverted_to"` / `"reverted_at"`). No migration
+is needed — it rides in the existing JSON column — and `onboarding.reset` clears it, so replaying
+the flow re-offers the theme.
 
 ### Needs → departments mapping
 
@@ -97,6 +125,12 @@ Extend `business_profile` (migration `000X_onboarding.sql`):
 - `recommend_bots(needs, departments)` → `[{name, profile, purpose}]`
 - `complete(s)` → mark onboarding complete
 
+The theme offer lives in its own service (`flowershop_core/services/theme.py`) rather than here: it
+describes the bundled skins, prepares the YAMLs on request, records the choice with the skin that
+was active beforehand, and reports the skin to switch to. It never writes `display.skin` — Hermes'
+own `config.set` does. `onboarding.answer` accepts the `theme` beat, and `onboarding.reset` clears
+the recorded choice along with the beats.
+
 ### REST (`dashboard/plugin_api.py`)
 
 | Method | Path | Purpose |
@@ -105,6 +139,9 @@ Extend `business_profile` (migration `000X_onboarding.sql`):
 | POST | `/onboarding/beat` | Answer a beat `{beat, answer}` |
 | GET | `/onboarding/fit` | Fit + custom assessment |
 | POST | `/onboarding/complete` | Mark complete |
+| GET | `/theme` | The theme offer: bundled, installed, active, previous, recorded choice |
+| POST | `/theme` | Record a choice (`{choice: "apply"\|"keep", theme}`); prepares the files and returns the skin the client should activate |
+| POST | `/theme/revert` | The skin to switch back to (undo an applied theme) |
 
 ### Tools (`flowershop_core/tools/`)
 
@@ -115,6 +152,8 @@ Extend `business_profile` (migration `000X_onboarding.sql`):
 | `flowershop_assess_fit` | read | Fit + custom assessment |
 | `flowershop_recommend_team` | read | Departments from needs |
 | `flowershop_create_bot` | write | Create a bot profile |
+| `flowershop_get_theme` | read | The theme offer: bundled, installed, active, previous |
+| `flowershop_choose_theme` | write | Record the owner's theme choice; prepares the skin files, and the returned directive is their one click to apply |
 
 ---
 
@@ -152,6 +191,7 @@ The manager skill (`flower-shop-manager`) gets a short section pointing to it.
 | `::flowershop-onboarding-team{}` | Department toggles card |
 | `::flowershop-onboarding-bots{}` | Bot options card |
 | `::flowershop-onboarding-fit{}` | Fit / custom assessment card |
+| `::flowershop-onboarding-theme{}` | Theme offer card — both variants, "Keep my current theme", Undo |
 
 Each card's control writes through the REST API and returns the agent a short receipt.
 
@@ -189,6 +229,10 @@ The assessment is deterministic (from `business_type` + `needs`) and stored, so 
 ## 10. Acceptance criteria
 
 - A new user can complete onboarding without editing config files.
+- **Installing the plugin never changes the theme**, and the theme beat is optional — skipping it
+  still leaves the run complete.
+- When the theme is applied it is an explicit click, and Undo returns to the exact skin that was
+  active beforehand.
 - The owner is asked what they need **before** being asked for data.
 - The fit explanation references the owner's own answers.
 - The **Other** path produces a concrete primitive mapping.
@@ -209,5 +253,6 @@ The assessment is deterministic (from `business_type` + `needs`) and stored, so 
 | 3 | Desktop: Welcome chat trigger, cards, Setup Studio | 1, 2 |
 | 4 | Bots: `profiles.create` wiring + Setup Studio showing bots | 3 |
 | 5 | Custom plugin: fit assessment + extension offer | 3 |
+| 6 | Theme offer: bundled skin, opt-in beat, undo | 1, 3 |
 
 Phases 1–3 deliver the core experience; 4–5 are extensions.

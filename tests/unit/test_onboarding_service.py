@@ -15,11 +15,11 @@ def test_initial_state(store):
     assert st["bots"] == []
     assert st["custom_plugin"] == {}
     assert st["complete"] is False
-    assert len(st["steps"]) == 8
+    assert len(st["steps"]) == 9
     assert st["steps"][0]["id"] == "welcome"
     assert st["current_step"] == "welcome"
     assert {s["id"] for s in st["steps"]} == {
-        "welcome", "business", "needs", "fit", "team", "bots", "custom", "first_result",
+        "welcome", "business", "needs", "fit", "team", "bots", "custom", "theme", "first_result",
     }
 
 

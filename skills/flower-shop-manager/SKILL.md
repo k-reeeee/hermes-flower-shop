@@ -45,10 +45,10 @@ Always pass `department='manager'`.
 When the owner is **setting up the business** (first run, or via "Flower Shop → Set up
 my business"), load the onboarding skill with
 `skill_view('flower-shop:flower-shop-onboarding')` and follow it. It walks the owner
-through the 8 beats — business type, needs, fit, team, bots, custom assessment — in the
-owner's language, maps **Other** businesses to the shop primitives, and offers the fit /
-custom-plugin assessment. Read `flowershop_get_onboarding` to see where they are and
-to resume.
+through the 9 beats — business type, needs, fit, team, bots, custom assessment, an
+optional theme offer — in the owner's language, maps **Other** businesses to the shop
+primitives, and offers the fit / custom-plugin assessment. Read
+`flowershop_get_onboarding` to see where they are and to resume.
 
 ## Daily briefing
 

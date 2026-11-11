@@ -12,9 +12,9 @@ from __future__ import annotations
 import json
 import logging
 
-from .. import get_store
+from .. import get_store, hermes_env
 from ..errors import FlowerShopError, InsufficientStock
-from ..services import approvals, delivery, finance, insights, inventory, onboarding, orders, production, profile, studio
+from ..services import approvals, delivery, finance, insights, inventory, onboarding, orders, production, profile, studio, theme
 from .schemas import DEFAULT_DEPARTMENTS
 
 log = logging.getLogger(__name__)
@@ -237,6 +237,40 @@ def flowershop_reset_onboarding(args: dict, **kwargs) -> str:
         return _error(e)
     except Exception as e:  # noqa: BLE001
         log.exception("flowershop_reset_onboarding failed")
+        return _internal(e)
+
+
+def flowershop_get_theme(args: dict, **kwargs) -> str:
+    s = get_store()
+    try:
+        return _ok(theme=theme.state(s, **hermes_env.skin_context()))
+    except FlowerShopError as e:
+        return _error(e)
+    except Exception as e:  # noqa: BLE001
+        log.exception("flowershop_get_theme failed")
+        return _internal(e)
+
+
+def flowershop_choose_theme(args: dict, **kwargs) -> str:
+    """Record the owner's theme choice; prepare the skin, never switch it.
+
+    The returned directive is the owner's single click to apply. The plugin has no
+    path that changes a skin on its own — Hermes' own config.set does the switch.
+    """
+    s = get_store()
+    try:
+        args = args or {}
+        result = theme.apply_choice(s, {"choice": args.get("choice"), "theme": args.get("theme")},
+                                    **hermes_env.skin_context(),
+                                    actor=_actor(args, "flowershop_choose_theme"))
+        directive = "::flowershop-onboarding-theme{}" if result.get("activate") else None
+        return _ok(**result, directive=directive,
+                   next_step=_NEXT_STEP if directive
+                   else "Recorded: the owner stays on their current theme.")
+    except FlowerShopError as e:
+        return _error(e)
+    except Exception as e:  # noqa: BLE001
+        log.exception("flowershop_choose_theme failed")
         return _internal(e)
 
 
@@ -521,6 +555,8 @@ HANDLERS: dict[str, object] = {
     "flowershop_recommend_team": flowershop_recommend_team,
     "flowershop_create_bot": flowershop_create_bot,
     "flowershop_reset_onboarding": flowershop_reset_onboarding,
+    "flowershop_get_theme": flowershop_get_theme,
+    "flowershop_choose_theme": flowershop_choose_theme,
     "flowershop_list_orders": flowershop_list_orders,
     "flowershop_get_order": flowershop_get_order,
     "flowershop_create_order_draft": flowershop_create_order_draft,

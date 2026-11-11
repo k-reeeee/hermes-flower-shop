@@ -25,7 +25,7 @@ from fastapi import APIRouter, Body, HTTPException, Query  # noqa: E402
 from fastapi.responses import FileResponse  # noqa: E402
 
 import flowershop_core  # noqa: E402
-from flowershop_core import get_store  # noqa: E402
+from flowershop_core import get_store, hermes_env  # noqa: E402
 from flowershop_core.errors import FlowerShopError  # noqa: E402
 from flowershop_core.seed import clear_demo, counts, seed_demo  # noqa: E402
 from flowershop_core.services import (  # noqa: E402
@@ -39,6 +39,7 @@ from flowershop_core.services import (  # noqa: E402
     production,
     profile,
     studio,
+    theme,
 )
 from flowershop_core.events import install_hermes_broadcaster  # noqa: E402
 
@@ -143,6 +144,33 @@ def reset_onboarding():
 @router.post("/onboarding/{step}/complete")
 def complete_onboarding_step(step: str, body: dict = Body(default_factory=dict)):
     return _run(lambda: profile.complete_step(get_store(), step, body or {}, ACTOR))
+
+
+# ---------------------------------------------------------------------------
+# Bundled theme (offered in onboarding, never applied on its own)
+# ---------------------------------------------------------------------------
+
+@router.get("/theme")
+def get_theme():
+    """The theme offer: what ships, what is installed, what is active, what was chosen."""
+    return _run(lambda: theme.state(get_store(), **hermes_env.skin_context()))
+
+
+@router.post("/theme")
+def choose_theme(body: dict = Body(default_factory=dict)):
+    """Record the owner's choice and prepare the skin files.
+
+    Never switches the theme: the reply's ``activate`` is the skin name the client
+    hands to Hermes' own ``config.set {key: "skin"}`` RPC, which writes display.skin
+    and broadcasts the live repaint. That click is the opt-in.
+    """
+    return _run(lambda: theme.apply_choice(get_store(), body or {}, **hermes_env.skin_context(), actor=ACTOR))
+
+
+@router.post("/theme/revert")
+def revert_theme():
+    """Undo an applied theme — returns the skin to switch back to."""
+    return _run(lambda: theme.revert(get_store(), **hermes_env.skin_context(), actor=ACTOR))
 
 
 # ---------------------------------------------------------------------------

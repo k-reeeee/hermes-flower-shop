@@ -42,6 +42,10 @@ BEATS = [
     {"id": "team", "title": "Team", "answer": None},
     {"id": "bots", "title": "Bots", "answer": None},
     {"id": "custom", "title": "Custom", "answer": None},
+    # The bundled garden theme is offered here and NEVER applied on its own
+    # (docs/ONBOARDING.md §2 beat 8). Marked optional so declining it — or never
+    # reaching it — cannot leave setup looking unfinished.
+    {"id": "theme", "title": "Theme", "answer": None, "optional": True},
     {"id": "first_result", "title": "First result", "answer": None},
 ]
 BEAT_IDS = [b["id"] for b in BEATS]
@@ -159,6 +163,28 @@ def _set_column(t: Tx, column: str, value: Any) -> None:
     )
 
 
+def record_beat(t: Tx, beat: str, answer_value: Any) -> None:
+    """Record one beat inside an open transaction (the caller holds the Tx).
+
+    Exposed so a service that answers a beat on its own — the theme offer — writes
+    exactly the record shape the generic beat endpoint writes.
+    """
+    beats = _beats(t)
+    beats[beat] = {"done": t.now, "answer": answer_value}
+    _save_beats(t, beats)
+
+
+def clear_theme(t: Tx) -> None:
+    """Drop the recorded theme choice, so replaying onboarding re-offers it."""
+    p = profile._get_raw(t)
+    ob = loads(p.get("onboarding_json"), {})
+    if isinstance(ob, dict) and ob.pop("theme", None) is not None:
+        t.execute(
+            "UPDATE business_profile SET onboarding_json = ?, updated_at = ? WHERE id = 1",
+            (json.dumps(ob), t.now),
+        )
+
+
 def state(s: Store) -> dict:
     """Full onboarding state (spec §5): profile + needs + fit + bots + custom + steps + beats."""
     t = s.read()
@@ -168,11 +194,14 @@ def state(s: Store) -> dict:
     for b in BEATS:
         rec = beats.get(b["id"])
         steps.append({
-            "id": b["id"], "title": b["title"],
+            "id": b["id"], "title": b["title"], "optional": bool(b.get("optional")),
             "done": bool(rec), "done_at": rec.get("done") if isinstance(rec, dict) else None,
             "answer": rec.get("answer") if isinstance(rec, dict) else None,
         })
     current = next((st["id"] for st in steps if not st["done"]), "first_result")
+    # Optional beats (the theme offer) are never a reason to withhold "complete":
+    # declining a theme must not leave setup looking unfinished.
+    required = [st for st in steps if not st["optional"]]
     return {
         "profile": profile._shape(t, p),
         "needs": loads(p.get("needs"), []),
@@ -181,7 +210,7 @@ def state(s: Store) -> dict:
         "custom_plugin": loads(p.get("custom_plugin"), {}),
         "steps": steps,
         "beats": beats,
-        "complete": all(st["done"] for st in steps),
+        "complete": all(st["done"] for st in required),
         "current_step": current,
     }
 
@@ -215,6 +244,11 @@ def answer(s: Store, beat: str | None, answer_value: Any, actor: str = "owner") 
             _set_column(t, "bots", answer_value)
         if beat == "custom" and isinstance(answer_value, dict):
             _set_column(t, "custom_plugin", answer_value)
+        if beat == "theme" and isinstance(answer_value, dict):
+            # Full validation (bundled name, install) lives in services/theme.py;
+            # this endpoint only guards the shape so a raw post can't store junk.
+            if str(answer_value.get("choice") or "").strip().lower() not in ("apply", "keep"):
+                raise ValidationError("theme choice must be 'apply' or 'keep'", field="answer")
         t.audit("onboarding", None, f"beat_answered:{beat}", actor)
     return state(s)
 
@@ -255,5 +289,6 @@ def reset(s: Store, actor: str = "owner") -> dict:
         _set_column(t, "fit", {})
         _set_column(t, "bots", [])
         _set_column(t, "custom_plugin", {})
+        clear_theme(t)
         t.audit("onboarding", None, "reset", actor)
     return state(s)

@@ -3,7 +3,7 @@
 // desktop/src/index.js
 import { jsx as jsx3 } from "react/jsx-runtime";
 import * as SDK from "@hermes/plugin-sdk";
-import { PALETTE_AREA, ROUTES_AREA, SIDEBAR_NAV_AREA, host as host5, queryClient as queryClient2 } from "@hermes/plugin-sdk";
+import { PALETTE_AREA, ROUTES_AREA, SIDEBAR_NAV_AREA, host as host6, queryClient as queryClient2 } from "@hermes/plugin-sdk";
 
 // desktop/src/lib/api.js
 import { useMutation, useQuery, useQueryClient, queryClient } from "@hermes/plugin-sdk";
@@ -34559,7 +34559,7 @@ async function openWelcomeChat() {
 }
 function WelcomeCta({ q, busy, onBegin }) {
   const done = q.data ? q.data.steps.filter((s) => s.done).length : 0;
-  const total = q.data ? q.data.steps.length : 8;
+  const total = q.data ? q.data.steps.length : 9;
   return h(
     "div",
     { className: "fs-hero", style: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 14, maxWidth: 640 } },
@@ -34751,7 +34751,7 @@ function SetUpAgainControl() {
       open: true,
       onClose: () => setConfirm(false),
       title: "Set up again?",
-      description: "This discards your onboarding answers (needs, fit, team, bots) and starts the setup flow over. Your business records - orders, stock and money - are kept.",
+      description: "This discards your onboarding answers (needs, fit, team, bots, theme) and starts the setup flow over. Your business records - orders, stock and money - are kept.",
       confirmLabel: "Set up again",
       onConfirm: run
     }) : null
@@ -34942,7 +34942,8 @@ function BriefingCard({ streaming }) {
 import { jsx as jsx2 } from "react/jsx-runtime";
 
 // desktop/src/components/onboarding-cards.js
-import { Switch as Switch3 } from "@hermes/plugin-sdk";
+import { useState as useState17 } from "react";
+import { Switch as Switch3, host as host5 } from "@hermes/plugin-sdk";
 var cardStyle2 = { border: "1px solid " + C.line, borderRadius: 8, padding: "10px 12px", maxWidth: "min(520px, 100%)", margin: "6px 0", background: "color-mix(in srgb, var(--ui-bg-tertiary) 35%, transparent)" };
 var note2 = (text) => h("div", { style: { ...cardStyle2, ...txt(12, C.t3) } }, text);
 var TYPES3 = [{ value: "florist", label: "Florist", emoji: "\u{1F337}" }, { value: "flower_stand", label: "Flower stand", emoji: "\u{1F33C}" }, { value: "event_florist", label: "Event and wedding florist", emoji: "\u{1F38C}" }, { value: "other", label: "Something else", emoji: "\u2728" }];
@@ -35110,6 +35111,81 @@ function OnboardingFitCard({ streaming }) {
     custom.needed ? h("div", { style: txt(12, C.t2) }, custom.offer || "Ask the Manager in chat about building a custom skill.") : h(Muted, null, custom.offer || "You\\u2019re set - no custom plugin needed.")
   );
 }
+var safeStr = (v) => typeof v === "string" ? v : "";
+var THEME_CHIPS = { anthousa: ["#FAF6F3", "#A25468"], "anthousa-night": ["#33242D", "#E8A4AA"] };
+function OnboardingThemeCard({ streaming }) {
+  const act = useAct();
+  const q = useApi(["onb", "theme"], "/theme", { interval: 3e4 });
+  const [msg, setMsg] = useState17("");
+  const data = q.data;
+  if (streaming && !data) return note2("Preparing the theme question...");
+  if (q.isError && !data) return note2("The theme question could not be loaded: " + (q.error && q.error.message || "unknown error"));
+  if (!data) return note2("Loading the theme question...");
+  if (data.available === false) return note2("Garden themes need Hermes to be running, so this step is not available here.");
+  const bundled = (Array.isArray(data.bundled) ? data.bundled : []).filter((b) => b && typeof b.name === "string" && b.name);
+  const choice = data.choice && typeof data.choice === "object" ? data.choice : null;
+  const previous = safeStr(data.previous);
+  const busy = !!act.isPending;
+  const switchSkin = async (name, okMsg) => {
+    try {
+      await host5.request("config.set", { key: "skin", value: name });
+      setMsg(okMsg);
+    } catch (e) {
+      setMsg("The theme was installed, but Hermes did not switch to it. You can pick it in Hermes settings.");
+    }
+  };
+  const choose = async (kind, name) => {
+    setMsg("");
+    try {
+      const res = await act.mutateAsync({ path: "/theme", body: kind === "apply" ? { choice: "apply", theme: name } : { choice: "keep" } });
+      const activate = res && typeof res.activate === "string" ? res.activate : "";
+      if (activate) await switchSkin(activate, "Switched to " + activate + ".");
+    } catch (e) {
+      setMsg("That did not go through: " + (e && e.message || "unknown error"));
+    }
+  };
+  const undo = async () => {
+    setMsg("");
+    try {
+      const res = await act.mutateAsync({ path: "/theme/revert", body: {} });
+      const back = res && typeof res.revert_to === "string" ? res.revert_to : "";
+      if (back) await switchSkin(back, "Went back to " + back + ".");
+    } catch (e) {
+      setMsg("Could not undo: " + (e && e.message || "unknown error"));
+    }
+  };
+  const btn = { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, padding: "7px 8px", borderRadius: 6, fontSize: 12, color: C.t1, background: "var(--ui-bg-tertiary)", border: "1px solid " + C.line, cursor: busy ? "default" : "pointer", textAlign: "left", opacity: busy ? 0.6 : 1 };
+  const receipt = choice && choice.choice === "apply" ? "Garden theme chosen: " + (safeStr(choice.theme) || "Anthousa") + "." : choice && choice.choice === "keep" ? "Keeping your current theme." : "";
+  return h(
+    "div",
+    { style: { ...cardStyle2, display: "flex", flexDirection: "column", gap: 8 } },
+    h("div", { style: txt(13, C.t1, { fontWeight: 600 }) }, "Would you like the Anthousa garden theme?"),
+    h(Muted, null, "Optional. Nothing changes unless you pick one."),
+    h(
+      "div",
+      { style: { display: "flex", flexDirection: "column", gap: 4 } },
+      bundled.map((b) => {
+        const chips = THEME_CHIPS[b.name];
+        const sub = [safeStr(b.tone), safeStr(b.description)].filter(Boolean).join(" \xB7 ");
+        return h(
+          "button",
+          { key: b.name, type: "button", disabled: busy, onClick: () => choose("apply", b.name), style: btn },
+          h(
+            "span",
+            { style: row(6) },
+            chips ? h("span", { "aria-hidden": "true", style: { display: "inline-flex", gap: 2 } }, chips.map((c, i) => h("span", { key: i, style: { width: 8, height: 8, borderRadius: 4, background: c, border: "1px solid " + C.line } }))) : null,
+            h("span", { style: { fontWeight: 500 } }, safeStr(b.title) || b.name)
+          ),
+          sub ? h("span", { style: txt(11, C.t3) }, sub) : null
+        );
+      }),
+      h("button", { type: "button", disabled: busy, onClick: () => choose("keep"), style: btn }, h("span", { style: { fontWeight: 500 } }, "Keep my current theme"))
+    ),
+    previous ? h("div", null, h("button", { type: "button", disabled: busy, onClick: undo, style: { ...btn, display: "inline-flex", flexDirection: "row", alignItems: "center", gap: 6 } }, h(Icon, { name: "arrow-left", size: 12 }), "Undo \u2014 go back to " + previous)) : null,
+    msg ? h("div", { style: txt(11, C.t3) }, msg) : null,
+    receipt ? h(Receipt, { text: receipt }) : null
+  );
+}
 
 // desktop/src/directives/onboarding.js
 var onboardingDirectives = [
@@ -35117,7 +35193,8 @@ var onboardingDirectives = [
   { id: "dir-onb-needs", area: "transcript.directives", data: { name: "flowershop-onboarding-needs", render: (p) => jsx2(OnboardingNeedsCard, { streaming: !!(p && p.streaming) }) } },
   { id: "dir-onb-team", area: "transcript.directives", data: { name: "flowershop-onboarding-team", render: (p) => jsx2(OnboardingTeamCard, { streaming: !!(p && p.streaming) }) } },
   { id: "dir-onb-bots", area: "transcript.directives", data: { name: "flowershop-onboarding-bots", render: (p) => jsx2(OnboardingBotsCard, { streaming: !!(p && p.streaming) }) } },
-  { id: "dir-onb-fit", area: "transcript.directives", data: { name: "flowershop-onboarding-fit", render: (p) => jsx2(OnboardingFitCard, { streaming: !!(p && p.streaming) }) } }
+  { id: "dir-onb-fit", area: "transcript.directives", data: { name: "flowershop-onboarding-fit", render: (p) => jsx2(OnboardingFitCard, { streaming: !!(p && p.streaming) }) } },
+  { id: "dir-onb-theme", area: "transcript.directives", data: { name: "flowershop-onboarding-theme", render: (p) => jsx2(OnboardingThemeCard, { streaming: !!(p && p.streaming) }) } }
 ];
 
 // desktop/src/index.js
@@ -35158,7 +35235,7 @@ var index_default = {
     ]);
   }
 };
-var __internals = { setTab, host: typeof host5 };
+var __internals = { setTab, host: typeof host6 };
 export {
   __internals,
   index_default as default

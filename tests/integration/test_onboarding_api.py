@@ -24,7 +24,7 @@ def test_get_onboarding_state(store, client):
     assert "needs" in body and "fit" in body and "bots" in body and "custom_plugin" in body
     assert "steps" in body and "beats" in body and "complete" in body and "current_step" in body
     assert body["complete"] is False
-    assert len(body["steps"]) == 8
+    assert len(body["steps"]) == 9
 
 
 def test_answer_onboarding_beat(store, client):
