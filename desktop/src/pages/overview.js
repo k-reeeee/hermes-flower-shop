@@ -40,6 +40,7 @@ function greeting(tz) {
   return 'Good night'
 }
 const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many || one + 's')
+const fmtDayShort = key => { const p = String(key || '').split('-'); return p.length === 3 ? Number(p[2]) + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(p[1]) - 1] : '' }
 
 // ---- Bloom: one petal per order due today ------------------------------------------------
 function Bloom({ orders, tz, size = 168 }) {
@@ -100,7 +101,7 @@ function BloomLegend({ orders }) {
   const keys = ['late', 'soon', 'track', 'ready', 'done'].filter(k => counts[k])
   if (!keys.length) return null
   return h('div', { style: { display: 'grid', gridTemplateColumns: 'auto auto', gap: '3px 12px', marginTop: 8 } },
-    keys.map(k => h('span', { key: k, style: row(5, txt(11, C.t3, { whiteSpace: 'nowrap' })) }, h('span', { className: 'fs-dot', style: { background: STATE_COLOR[k] } }), counts[k] + ' ' + STATE_WORD[k].toLowerCase())))
+    keys.map(k => h('span', { key: k, style: row(5, txt(11.5, C.t2, { whiteSpace: 'nowrap' })) }, h('span', { className: 'fs-dot', style: { background: STATE_COLOR[k] } }), counts[k] + ' ' + STATE_WORD[k].toLowerCase())))
 }
 
 // ---- the day story: one generated sentence --------------------------------------------------
@@ -169,9 +170,9 @@ function Spark({ days, cur }) {
   return h(
     'svg',
     { width: '100%', height: H, viewBox: '0 0 ' + W + ' ' + H, preserveAspectRatio: 'none', role: 'img', 'aria-label': 'Last 7 days: booked ' + money(sum('booked_minor'), cur) + ', paid ' + money(sum('payments_minor'), cur), style: { display: 'block', overflow: 'visible' } },
-    h('path', { d: area, fill: 'color-mix(in srgb, ' + BRAND.rose + ' 16%, transparent)' }),
-    h('path', { d: line('booked_minor'), fill: 'none', stroke: BRAND.rose, strokeWidth: 2, vectorEffect: 'non-scaling-stroke', strokeLinejoin: 'round' }),
-    h('path', { d: line('payments_minor'), fill: 'none', stroke: BRAND.leaf, strokeWidth: 2, strokeDasharray: '4 3', vectorEffect: 'non-scaling-stroke', strokeLinejoin: 'round' })
+    h('path', { d: area, fill: 'color-mix(in srgb, ' + BRAND.rose + ' 24%, transparent)' }),
+    h('path', { d: line('booked_minor'), fill: 'none', stroke: BRAND.rose, strokeWidth: 2.5, vectorEffect: 'non-scaling-stroke', strokeLinejoin: 'round' }),
+    h('path', { d: line('payments_minor'), fill: 'none', stroke: BRAND.leaf, strokeWidth: 2.5, strokeDasharray: '4 3', vectorEffect: 'non-scaling-stroke', strokeLinejoin: 'round' })
   )
 }
 
@@ -203,7 +204,8 @@ function MoneyCard({ m, cur }) {
               h('span', { style: row(8, txt(10.5, C.t3)) },
                 h('span', { style: row(4) }, h('span', { className: 'fs-dot', style: { background: BRAND.rose } }), 'booked'),
                 h('span', { style: row(4) }, h('span', { className: 'fs-dot', style: { background: BRAND.leaf } }), 'paid'))),
-            h(Spark, { days, cur }))
+            h(Spark, { days, cur }),
+            h('div', { style: row(8, { justifyContent: 'space-between' }) }, h(Muted, { size: 10.5 }, fmtDayShort(days[0].date)), h(Muted, { size: 10.5 }, 'today')))
         : null)
   )
 }
@@ -262,7 +264,7 @@ function DayTimeline({ orders, tz }) {
           h('div', { className: 'fs-tl-axis' }),
           nowIn ? h('div', { className: 'fs-tl-past', style: { width: pos(nowM) + '%' } }) : null,
           ticks.map(t => h('span', { key: t, className: 'fs-tl-tick', style: { left: pos(t) + '%' } }, String(Math.floor(t / 60)).padStart(2, '0') + ':00')),
-          nowIn ? h('div', { className: 'fs-tl-now', style: { left: 'calc(' + pos(nowM) + '% - 1px)' } }) : null,
+          nowIn ? h('div', { className: 'fs-tl-now', style: { left: 'calc(' + pos(nowM) + '% - 1px)' } }, h('span', null, 'now')) : null,
           sorted.map(p => {
             const st = orderState(p.o, now)
             const label = fmtTime(p.o.requested_delivery_at, tz) + ' ' + p.o.order_number + ' ' + ((p.o.customer && p.o.customer.name) || '') + ' - ' + STATE_WORD[st]
@@ -401,10 +403,10 @@ function DeliveriesCard({ list, tz }) {
     Card,
     { title: 'Deliveries today', i: 7, right: h(Linkish, { onClick: () => goTo('delivery') }, 'Schedule') },
     list.length
-      ? h('div', null, list.map((dl, i) => h('div', { key: dl.id, style: { display: 'grid', gridTemplateColumns: '42px minmax(0,1fr) auto', gap: 10, alignItems: 'center', padding: '7px 0', borderTop: i ? '1px solid ' + C.line : 'none' } },
+      ? h('div', null, list.map((dl, i) => h('div', { key: dl.id, style: { display: 'grid', gridTemplateColumns: '42px minmax(0,1fr) auto', gap: 10, alignItems: 'center', padding: '10px 0', borderTop: i ? '1px solid ' + C.line : 'none' } },
           h('span', { className: 'fs-num', style: txt(12.5, dl.is_late ? C.bad : C.t1, { fontWeight: 600 }) }, fmtTime(dl.scheduled_at, tz)),
           h('span', { style: col(1, { minWidth: 0 }) }, h('span', { style: txt(12.5, C.t1, clip) }, (dl.recipient_name || '') + ' - ' + dl.order_number), h('span', { style: txt(11, C.t3, clip) }, dl.address || '')),
-          h('span', { style: row(5, txt(11, C.t3, { whiteSpace: 'nowrap' })) }, h(Icon, { name: 'person', size: 12 }), dl.assigned_to || 'no driver'))))
+          h('span', { style: row(5, txt(11.5, dl.assigned_to ? C.t2 : C.warn, { whiteSpace: 'nowrap', fontWeight: dl.assigned_to ? 400 : 600 })) }, h(Icon, { name: dl.assigned_to ? 'person' : 'warning', size: 12 }), dl.assigned_to || 'No driver'))))
       : h(Empty, { title: 'No deliveries today' })
   )
 }
