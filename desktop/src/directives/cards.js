@@ -4,10 +4,11 @@ import { useApi, useOverview, useShop } from '../lib/api.js'
 import { fmtDateTime, money, num, paymentLabel, paymentTone, stationLabel } from '../lib/format.js'
 import { goTo, openOrder } from '../lib/store.js'
 import { C, Muted, Pill, col, h, row, txt } from '../lib/ui.js'
+import { FsPageStyles } from '../lib/styles-pages.js'
 import { Due, StatusPill, ApprovalItem } from '../components/common.js'
 
 const ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$/
-const cardStyle = { border: '1px solid ' + C.line, borderRadius: 8, padding: '10px 12px', maxWidth: 520, margin: '6px 0', background: 'color-mix(in srgb, var(--ui-bg-tertiary) 35%, transparent)' }
+const cardStyle = { border: '1px solid ' + C.line, borderRadius: 8, padding: '10px 12px', maxWidth: 'min(520px, 100%)', margin: '6px 0', background: 'color-mix(in srgb, var(--ui-bg-tertiary) 35%, transparent)' }
 const note = text => h('div', { style: { ...cardStyle, ...txt(12, C.t3) } }, text)
 
 export function validId(v) {
@@ -41,7 +42,8 @@ export function ApprovalCard({ id, streaming }) {
   if (streaming && !q.data) return note('Preparing approval card...')
   if (q.isError && !q.data) return note('Approval ' + id + ' could not be loaded: ' + ((q.error && q.error.message) || 'unknown error'))
   if (!q.data) return note('Loading approval ' + id + '...')
-  return h('div', { style: cardStyle }, h(ApprovalItem, { approval: q.data }))
+  // ApprovalItem speaks the page's fs- classes: give it the stylesheet and a container query scope.
+  return h('div', { style: cardStyle }, h('div', { style: { containerType: 'inline-size', containerName: 'fs' } }, h(FsPageStyles, {}), h(ApprovalItem, { approval: q.data })))
 }
 
 export function BriefingCard({ streaming }) {
@@ -57,7 +59,7 @@ export function BriefingCard({ streaming }) {
     'div',
     { style: { ...cardStyle, display: 'flex', flexDirection: 'column', gap: 8 } },
     h('div', { style: txt(12, C.t2, { fontWeight: 600 }) }, 'Today in the shop - ' + d.today),
-    h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 10 } }, cell('Due today', num(m.orders_due_today)), cell('Late', num(m.late_orders), m.late_orders ? 'bad' : null), cell('Approvals', num(m.pending_approvals), m.pending_approvals ? 'warn' : null), cell('Low stock', num(m.low_stock_items), m.low_stock_items ? 'warn' : null), cell('In production', num(m.in_production)), cell('Ready', num(m.ready)), cell('Expected today', money(m.expected_revenue_today_minor, d.currency || currency)), cell('Received today', money(m.payments_today_minor, d.currency || currency))),
+    h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))', gap: 10 } }, cell('Due today', num(m.orders_due_today)), cell('Late', num(m.late_orders), m.late_orders ? 'bad' : null), cell('Approvals', num(m.pending_approvals), m.pending_approvals ? 'warn' : null), cell('Low stock', num(m.low_stock_items), m.low_stock_items ? 'warn' : null), cell('In production', num(m.in_production)), cell('Ready', num(m.ready)), cell('Expected today', money(m.expected_revenue_today_minor, d.currency || currency)), cell('Received today', money(m.payments_today_minor, d.currency || currency))),
     d.alerts && d.alerts.length ? h('div', { style: txt(12, C.t2) }, d.alerts.slice(0, 3).map(a => a.title).join(' / ')) : h('div', { style: txt(12, C.t3) }, 'Nothing needs attention right now.'),
     h('div', null, h(Button, { size: 'xs', variant: 'outline', onClick: () => goTo('overview') }, 'Open overview'))
   )

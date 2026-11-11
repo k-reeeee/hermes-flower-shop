@@ -22,8 +22,11 @@ export const PAGES_CSS = `
 .fs-minis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:var(--fs-gap)}
 .fs-minis .fs-kpi{background:transparent}
 .fs-kpis3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@container fs (max-width: 959px){.fs-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .fs-note{font-size:11px;line-height:1.45;color:var(--fs-t3)}
 .fs-hr{border-top:1px solid var(--fs-line)}
+.fs-callout{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--fs-line);border-radius:12px;background:var(--fs-card);font-size:12.5px;line-height:1.45;color:var(--fs-t2);min-width:0}
+.fs-callout-ic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;background:color-mix(in srgb,var(--hue) 18%,transparent);color:var(--hue)}
 
 /* ---- key/value rows that wrap instead of overflowing ---- */
 .fs-kv{display:flex;align-items:baseline;justify-content:space-between;gap:12px;min-width:0;font-size:12px;line-height:1.45}
@@ -165,10 +168,15 @@ button.fs-rowcard:active{transform:none}
 .fs-step:hover{background:var(--fs-card-hi)}
 .fs-step:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px}
 .fs-step[aria-current=step]{border-color:var(--fs-rose);background:var(--fs-rose-soft)}
+.fs-step-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+button.fs-kpi.fs-click{all:unset;box-sizing:border-box;display:flex;flex-direction:column;gap:4px;padding:12px 14px;border:1px solid var(--fs-line);border-radius:12px;background:var(--fs-card);min-width:0;text-align:left;color:inherit;cursor:pointer}
 .fs-step-ic{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;flex:none;font-size:11px;font-weight:700;background:var(--ui-bg-tertiary);color:var(--fs-t2)}
 .fs-step[data-done=true] .fs-step-ic{background:color-mix(in srgb,var(--fs-ok) 20%,transparent);color:var(--fs-ok)}
 .fs-setup-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--fs-line);border-radius:10px;padding:8px 12px;min-width:0}
 .fs-btnrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.fs-intro{display:flex;flex-direction:column;gap:4px}
+.fs-intro-r{display:grid;grid-template-columns:88px minmax(0,1fr);gap:4px 10px;align-items:baseline;font-size:12px;line-height:1.45}
+.fs-intro-n{font-weight:600;color:var(--fs-t1)}
 @container fs (min-width: 960px){
   .fs-setup{grid-template-columns:250px minmax(0,1fr)}
   .fs-steps{grid-template-columns:minmax(0,1fr)}

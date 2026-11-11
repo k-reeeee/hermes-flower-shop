@@ -17,6 +17,8 @@ export function ApprovalChip() {
       style: { display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 0, padding: '0 6px', height: '100%', color: n > 0 ? C.t1 : C.t3, fontSize: 11, cursor: 'pointer' }
     },
     h('span', { 'aria-hidden': 'true', style: { color: C.rose, fontSize: 12 } }, '\u273F'),
-    n > 0 ? h('span', { style: { fontVariantNumeric: 'tabular-nums', fontWeight: 600 } }, String(n)) : null
+    n > 0
+      ? h('span', { style: { minWidth: 16, height: 16, padding: '0 4px', borderRadius: 999, background: C.rose, color: '#fff', fontSize: 10, fontWeight: 700, display: 'inline-grid', placeItems: 'center', fontVariantNumeric: 'tabular-nums' } }, String(n))
+      : null
   )
 }

@@ -1,9 +1,9 @@
 // Small React helpers shared by the secondary pages (design kit v1). Layout lives in
 // lib/styles-pages.js; these only emit the fs- classes.
 import { useEffect, useRef } from 'react'
-import { STATION } from '../lib/tokens.js'
+import { BRAND, STATION } from '../lib/tokens.js'
 import { FsPageStyles } from '../lib/styles-pages.js'
-import { Icon, h } from '../lib/ui.js'
+import { C, Icon, h } from '../lib/ui.js'
 
 // Page title + subtitle on the left, actions on the right (wraps on narrow panes).
 export function PageHead({ title, sub, right }) {
@@ -57,4 +57,27 @@ export function useScrollTop(dep) {
 
 export function BackBtn({ onClick, children }) {
   return h('button', { type: 'button', className: 'fs-only-narrow fs-chip fs-click', onClick, style: { all: 'unset', boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', gap: 6, height: 'var(--fs-hit)', padding: '0 12px', borderRadius: 999, background: 'var(--fs-card-hi)', fontSize: 12, color: 'var(--fs-t1)', cursor: 'pointer', marginBottom: 10 } }, h(Icon, { name: 'arrow-left', size: 12 }), children)
+}
+
+// Wide tables scroll inside the pane instead of pushing the page wide.
+export const wrap = table => h('div', { className: 'fs-table-wrap' }, table)
+
+// Production stage -> station hue + codicon (design kit 8, tokens.STATION).
+export const STAGE = {
+  QUEUED: { hue: STATION.incoming.hue, icon: STATION.incoming.icon },
+  PREP: { hue: STATION.prep.hue, icon: STATION.prep.icon },
+  ASSEMBLY: { hue: STATION.assembly.hue, icon: STATION.assembly.icon },
+  QUALITY_CHECK: { hue: STATION.quality.hue, icon: STATION.quality.icon },
+  DONE: { hue: BRAND.leaf, icon: 'pass-filled' }
+}
+
+// Icon + sentence callout (approval policy, disclaimers, demo notes).
+export function Callout({ icon = 'info', tone = 'muted', children, i }) {
+  const c = tone === 'warn' ? 'var(--fs-warn)' : tone === 'bad' ? 'var(--fs-bad)' : tone === 'ok' ? 'var(--fs-ok)' : C.t3
+  return h(
+    'div',
+    { className: 'fs-callout' + (i !== undefined ? ' fs-enter' : ''), style: { '--hue': c, ...(i !== undefined ? { '--i': i } : null) } },
+    h('span', { className: 'fs-callout-ic', 'aria-hidden': 'true' }, h(Icon, { name: icon, size: 13 })),
+    h('div', { style: { minWidth: 0, flex: 1 } }, children)
+  )
 }
