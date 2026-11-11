@@ -156,7 +156,7 @@ function clearNewOrder() {
 }
 
 // desktop/src/pages/shell.js
-import { useEffect as useEffect6, useRef as useRef3, useState as useState14 } from "react";
+import { useEffect as useEffect7, useRef as useRef4, useState as useState14 } from "react";
 import { useValue as useValue2 } from "@hermes/plugin-sdk";
 
 // desktop/src/lib/h.js
@@ -614,6 +614,28 @@ var BRAND = {
   kraft: "#D8B98D",
   leaf: "#6FB07A"
 };
+var STATION = {
+  incoming: { hue: "#B9A6E8", icon: "mail", short: "Incoming" },
+  prep: { hue: "#F2B97E", icon: "beaker", short: "Prep" },
+  assembly: { hue: "#F09AAE", icon: "heart", short: "Assembly" },
+  quality: { hue: "#8FD3AE", icon: "pass", short: "Quality" },
+  packing: { hue: "#93C3EC", icon: "package", short: "Packing" },
+  delivery: { hue: "#7CCBC0", icon: "rocket", short: "Delivery" }
+};
+var STATION_ORDER = ["incoming", "prep", "assembly", "quality", "packing", "delivery"];
+var BOUQUET = {
+  red: "#E0566D",
+  pink: "#F3A5BF",
+  white: "#FBF8F3",
+  yellow: "#F3C444",
+  peach: "#F6B48F",
+  lilac: "#C9B8E8",
+  purple: "#B59AD6",
+  orange: "#F2A07B",
+  blue: "#9CC6EA",
+  green: "#9FD39A",
+  mixed: "#E57C93"
+};
 var STATE = {
   late: { color: "var(--ui-red)", icon: "flame", word: "Late" },
   soon: { color: "var(--ui-yellow)", icon: "bell", word: "Needs you" },
@@ -877,22 +899,6 @@ function Linkish({ children, onClick, style, title }) {
   );
 }
 var kv = (k, v, key) => h("div", { key: key || k, style: row(8, { justifyContent: "space-between", alignItems: "baseline" }) }, h("span", { style: txt(12, C.t3) }, k), h("span", { style: txt(12, C.t1, { textAlign: "right", fontVariantNumeric: "tabular-nums" }) }, v));
-function PayloadPreview({ payload, money: money2 }) {
-  const keys = Object.keys(payload || {});
-  if (!keys.length) return null;
-  return h(
-    "div",
-    { style: col(2, { background: "var(--ui-bg-tertiary)", borderRadius: 6, padding: "6px 8px" }) },
-    keys.slice(0, 8).map((k) => {
-      const v = payload[k];
-      let shown;
-      if (/_minor$/.test(k) && typeof v === "number") shown = money2(v);
-      else if (v && typeof v === "object") shown = JSON.stringify(v).slice(0, 80);
-      else shown = String(v);
-      return h("div", { key: k, style: row(8, { justifyContent: "space-between" }) }, h("span", { style: txt(11, C.t3) }, humanize(k.replace(/_minor$/, ""))), h("span", { style: txt(11, C.t2, { ...clip, textAlign: "right" }) }, shown));
-    })
-  );
-}
 function BloomMark({ size = 18, color = "#E07A93" }) {
   const petals = [];
   for (let i = 0; i < 5; i++) {
@@ -902,12 +908,516 @@ function BloomMark({ size = 18, color = "#E07A93" }) {
 }
 
 // desktop/src/pages/overview.js
-import { useState as useState3 } from "react";
-import { Button as Button3 } from "@hermes/plugin-sdk";
-
-// desktop/src/components/common.js
 import { useState as useState2 } from "react";
 import { Button as Button2 } from "@hermes/plugin-sdk";
+var ONWAY = ["READY", "OUT_FOR_DELIVERY"];
+function orderState(o, now) {
+  if (o.status === "COMPLETED") return "done";
+  if (o.is_late || o.status === "FAILED_DELIVERY") return "late";
+  if (ONWAY.includes(o.status)) return "ready";
+  const due = o.requested_delivery_at ? new Date(o.requested_delivery_at).getTime() : null;
+  if (due !== null && due - now < 3 * 3600 * 1e3) return "soon";
+  return "track";
+}
+var STATE_COLOR = { done: "var(--ui-green)", ready: BRAND.leaf, late: "var(--ui-red)", soon: "var(--ui-yellow)", track: BRAND.rose };
+var STATE_WORD = { done: "Done", ready: "Ready / on the way", late: "Late", soon: "Due within 3h", track: "On track" };
+function localMinutes(iso, tz) {
+  const t = fmtTime(iso, tz);
+  const m = /^(\d\d):(\d\d)/.exec(t);
+  return m ? Number(m[1]) % 24 * 60 + Number(m[2]) : null;
+}
+function greeting(tz) {
+  const m = localMinutes((/* @__PURE__ */ new Date()).toISOString(), tz);
+  if (m === null) return "Hello";
+  if (m < 11 * 60) return "Good morning";
+  if (m < 15 * 60) return "Good afternoon";
+  if (m < 19 * 60) return "Good evening";
+  return "Good night";
+}
+var plural = (n, one, many) => n + " " + (n === 1 ? one : many || one + "s");
+function Bloom({ orders, tz, size = 168 }) {
+  const now = Date.now();
+  const n = orders.length;
+  const c = 84;
+  if (!n) {
+    return h(
+      "svg",
+      { className: "fs-bloom", width: size, height: size, viewBox: "0 0 168 168", role: "img", "aria-label": "Nothing due today" },
+      h("circle", { cx: c, cy: c, r: 46, fill: "none", stroke: "var(--ui-stroke-secondary)", strokeDasharray: "4 6", strokeWidth: 2 }),
+      h("text", { x: c, y: c - 2, textAnchor: "middle", fontSize: 13, fill: "var(--ui-text-secondary)", fontWeight: 600 }, "All clear"),
+      h("text", { x: c, y: c + 15, textAnchor: "middle", fontSize: 10.5, fill: "var(--ui-text-tertiary)" }, "nothing due today")
+    );
+  }
+  const done = orders.filter((o) => {
+    const s = orderState(o, now);
+    return s === "done" || s === "ready";
+  }).length;
+  const len = 56;
+  const half = Math.min(24, Math.max(8, Math.PI * 2 * 40 / n / 2.2));
+  const base = 25;
+  const d = "M " + c + " " + (c - base) + " C " + (c - half * 1.3) + " " + (c - base - len * 0.35) + ", " + (c - half * 0.95) + " " + (c - base - len * 0.95) + ", " + c + " " + (c - base - len) + " C " + (c + half * 0.95) + " " + (c - base - len * 0.95) + ", " + (c + half * 1.3) + " " + (c - base - len * 0.35) + ", " + c + " " + (c - base) + " Z";
+  const sorted = orders.slice().sort((a, b) => String(a.requested_delivery_at).localeCompare(String(b.requested_delivery_at)));
+  return h(
+    "svg",
+    { className: "fs-bloom", width: size, height: size, viewBox: "0 0 168 168", role: "group", "aria-label": "Today: " + done + " of " + n + " orders ready, on the way or done" },
+    sorted.map((o, i) => {
+      const st = orderState(o, now);
+      const colr = STATE_COLOR[st];
+      const label = o.order_number + " - " + (o.customer && o.customer.name || "") + " - due " + fmtTime(o.requested_delivery_at, tz) + " - " + STATE_WORD[st];
+      return h(
+        "g",
+        { key: o.id, transform: "rotate(" + i * 360 / n + " " + c + " " + c + ")" },
+        h("path", {
+          d,
+          className: "fs-petal",
+          style: { "--i": i },
+          fill: "color-mix(in srgb, " + colr + " 80%, transparent)",
+          stroke: colr,
+          strokeWidth: 1.5,
+          tabIndex: 0,
+          role: "button",
+          "aria-label": label,
+          onClick: () => openOrder(o.id),
+          onKeyDown: (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              openOrder(o.id);
+            }
+          }
+        }, h("title", null, label)),
+        st === "late" ? h("circle", { cx: c, cy: c - base - len + 10, r: 3.2, fill: "#fff", opacity: 0.9, pointerEvents: "none" }) : null
+      );
+    }),
+    h("circle", { cx: c, cy: c, r: base - 2, fill: "#F3C444", stroke: "rgba(0,0,0,.18)", strokeWidth: 1 }),
+    h("text", { x: c, y: c + 2, textAnchor: "middle", fontSize: 16, fontWeight: 700, fill: "#3b2a12" }, done + "/" + n),
+    h("text", { x: c, y: c + 13, textAnchor: "middle", fontSize: 7.5, fontWeight: 700, fill: "#5a4320", letterSpacing: ".06em" }, "READY")
+  );
+}
+function BloomLegend({ orders }) {
+  const now = Date.now();
+  const counts = {};
+  for (const o of orders) {
+    const s = orderState(o, now);
+    counts[s] = (counts[s] || 0) + 1;
+  }
+  const keys = ["late", "soon", "track", "ready", "done"].filter((k) => counts[k]);
+  if (!keys.length) return null;
+  return h(
+    "div",
+    { style: { display: "grid", gridTemplateColumns: "auto auto", gap: "3px 12px", marginTop: 8 } },
+    keys.map((k) => h("span", { key: k, style: row(5, txt(11, C.t3, { whiteSpace: "nowrap" })) }, h("span", { className: "fs-dot", style: { background: STATE_COLOR[k] } }), counts[k] + " " + STATE_WORD[k].toLowerCase()))
+  );
+}
+function story(m, cur) {
+  const out = [];
+  const due = m.orders_due_today;
+  if (!due) out.push(h("b", { key: "a" }, "Nothing is due today"));
+  else out.push(h("b", { key: "a" }, plural(due, "order")), " due today");
+  const tail = [];
+  if (m.late_orders) tail.push([m.late_orders + (m.late_orders === 1 ? " is" : " are") + " late", true]);
+  if (m.ready) tail.push([m.ready + " ready to hand over", false]);
+  if (m.out_for_delivery) tail.push([m.out_for_delivery + " on the way", false]);
+  if (tail.length) {
+    out.push(" \u2014 ");
+    tail.forEach((t, i) => {
+      if (i) out.push(i === tail.length - 1 ? " and " : ", ");
+      out.push(h("b", { key: "t" + i, style: t[1] ? { color: C.bad } : void 0 }, t[0]));
+    });
+  }
+  out.push(". ");
+  if (m.pending_approvals) out.push(h("b", { key: "p" }, plural(m.pending_approvals, "decision")), " waiting for you. ");
+  else out.push("No decisions waiting. ");
+  if (m.expected_revenue_today_minor) out.push("Today\u2019s orders bring in ", h("b", { key: "r" }, money(m.expected_revenue_today_minor, cur)), ".");
+  return out;
+}
+function Fact(label, value, color, onClick) {
+  return h(
+    "button",
+    { key: label, type: "button", className: "fs-fact fs-click", onClick, style: { padding: "4px 8px", margin: "-4px -8px", borderRadius: 8, textAlign: "left" } },
+    h("span", { className: "fs-overline" }, label),
+    h("span", { className: "fs-fact-v", style: color ? { color } : void 0 }, h(CountUp, { value: value || 0 }))
+  );
+}
+function TodayHero({ d, due, cur, tz, shopName }) {
+  const m = d.metrics;
+  return h(
+    "section",
+    { className: "fs-hero fs-enter", style: { "--i": 0 }, "aria-label": "Today at a glance" },
+    h("div", { style: col(0, { alignItems: "center" }) }, h(Bloom, { orders: due, tz }), h(BloomLegend, { orders: due })),
+    h(
+      "div",
+      { style: { minWidth: 0 } },
+      h("div", { className: "fs-overline" }, fmtLongDate(null, tz)),
+      h("h2", { className: "fs-hero-title", style: { marginTop: 4 } }, greeting(tz) + (shopName ? ", " + shopName : "")),
+      h("p", { className: "fs-hero-story" }, story(m, cur)),
+      h(
+        "div",
+        { className: "fs-hero-facts" },
+        Fact("Due today", m.orders_due_today, null, () => goTo("orders", { due: "today" })),
+        Fact("Late", m.late_orders, m.late_orders ? C.bad : null, () => goTo("orders", { due: "late" })),
+        Fact("Needs you", m.pending_approvals, m.pending_approvals ? C.warn : null, () => goTo("approvals")),
+        Fact("Low stock", m.low_stock_items, m.low_stock_items ? C.warn : null, () => goTo("inventory"))
+      )
+    )
+  );
+}
+function Spark({ days, cur }) {
+  const W = 240, H = 54, P = 4;
+  const max = Math.max(1, ...days.map((x2) => Math.max(x2.booked_minor || 0, x2.payments_minor || 0)));
+  const x = (i) => P + i * (W - P * 2) / Math.max(1, days.length - 1);
+  const y = (v) => H - P - (v || 0) / max * (H - P * 2 - 4);
+  const line = (k) => days.map((dd, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(dd[k]).toFixed(1)).join(" ");
+  const area = line("booked_minor") + " L " + x(days.length - 1) + " " + (H - P) + " L " + x(0) + " " + (H - P) + " Z";
+  const sum = (k) => days.reduce((s, dd) => s + (dd[k] || 0), 0);
+  return h(
+    "svg",
+    { width: "100%", height: H, viewBox: "0 0 " + W + " " + H, preserveAspectRatio: "none", role: "img", "aria-label": "Last 7 days: booked " + money(sum("booked_minor"), cur) + ", paid " + money(sum("payments_minor"), cur), style: { display: "block", overflow: "visible" } },
+    h("path", { d: area, fill: "color-mix(in srgb, " + BRAND.rose + " 16%, transparent)" }),
+    h("path", { d: line("booked_minor"), fill: "none", stroke: BRAND.rose, strokeWidth: 2, vectorEffect: "non-scaling-stroke", strokeLinejoin: "round" }),
+    h("path", { d: line("payments_minor"), fill: "none", stroke: BRAND.leaf, strokeWidth: 2, strokeDasharray: "4 3", vectorEffect: "non-scaling-stroke", strokeLinejoin: "round" })
+  );
+}
+function MoneyCard({ m, cur }) {
+  const fin = useApi(["finance", "overview-week"], "/finance/summary", { interval: 6e4 });
+  const exp = m.expected_revenue_today_minor || 0;
+  const paid = m.payments_today_minor || 0;
+  const pctPaid = exp ? Math.min(100, Math.round(paid / exp * 100)) : paid ? 100 : 0;
+  const days = fin.data && fin.data.by_day;
+  const mf = (v) => money(v, cur);
+  return h(
+    Card,
+    { title: "Money today", i: 1, style: { height: "100%" }, right: h(Linkish, { onClick: () => goTo("finance") }, "Money") },
+    h(
+      "div",
+      { style: col(10) },
+      h(
+        "div",
+        null,
+        h("div", { className: "fs-overline" }, "Paid today"),
+        h(
+          "div",
+          { style: row(8, { alignItems: "baseline", flexWrap: "wrap" }) },
+          h("span", { className: "fs-kpi-v" }, h(CountUp, { value: paid, fmt: mf })),
+          h(Muted, { size: 12 }, "of " + mf(exp) + " expected")
+        )
+      ),
+      h(
+        "div",
+        { className: "fs-meter", role: "meter", "aria-valuemin": 0, "aria-valuemax": 100, "aria-valuenow": pctPaid, "aria-label": pctPaid + "% of today\u2019s expected revenue paid" },
+        h("i", { style: { width: pctPaid + "%", "--c": BRAND.leaf } })
+      ),
+      h(
+        "div",
+        { style: row(8, { justifyContent: "space-between", flexWrap: "wrap" }) },
+        h(Muted, { size: 11 }, pctPaid + "% collected"),
+        h(Muted, { size: 11 }, "open orders " + mf(m.open_order_value_minor))
+      ),
+      days && days.length > 1 ? h(
+        "div",
+        { style: col(4, { marginTop: 4 }) },
+        h(
+          "div",
+          { style: row(10, { justifyContent: "space-between" }) },
+          h("span", { className: "fs-overline" }, "Last 7 days"),
+          h(
+            "span",
+            { style: row(8, txt(10.5, C.t3)) },
+            h("span", { style: row(4) }, h("span", { className: "fs-dot", style: { background: BRAND.rose } }), "booked"),
+            h("span", { style: row(4) }, h("span", { className: "fs-dot", style: { background: BRAND.leaf } }), "paid")
+          )
+        ),
+        h(Spark, { days, cur })
+      ) : null
+    )
+  );
+}
+function FlowStrip() {
+  const q = useApi(["floor"], "/floor", { interval: 1e4 });
+  const f = q.data;
+  if (!f) return h(Card, { title: "Where orders are", i: 2 }, h(SkeletonBlock, { rows: 1, height: 70 }));
+  const orders = f.orders || [];
+  return h(
+    Card,
+    { title: "Where orders are", i: 2, right: h("span", { style: row(10) }, h(Muted, null, plural(orders.length, "active order")), h(Linkish, { onClick: () => goTo("floor") }, "Shop floor")) },
+    h(
+      "div",
+      { className: "fs-flow", role: "list" },
+      STATION_ORDER.map((sid) => {
+        const s = (f.stations || []).find((x) => x.id === sid) || { count: 0, late: 0 };
+        const here = orders.filter((o) => o.station === sid);
+        const meta = STATION[sid];
+        return h(
+          "button",
+          { key: sid, type: "button", role: "listitem", className: "fs-node", "data-empty": !s.count, style: { "--hue": meta.hue }, onClick: () => goTo("floor"), "aria-label": stationLabel(sid) + ": " + s.count + (s.late ? ", " + s.late + " late" : "") },
+          h("span", { className: "fs-node-dot" }, s.count ? h(CountUp, { value: s.count }) : h(Icon, { name: meta.icon, size: 15 })),
+          s.late ? h("span", { className: "fs-node-late", title: s.late + " late" }, String(s.late)) : null,
+          h("span", { className: "fs-node-l fs-clip" }, meta.short),
+          h("span", { className: "fs-node-buds", "aria-hidden": "true" }, here.slice(0, 8).map((o) => h("span", { key: o.id, className: "fs-bud", "data-late": !!o.is_late, title: o.order_number, style: { background: BOUQUET[o.color] || BRAND.rose } })))
+        );
+      })
+    )
+  );
+}
+function DayTimeline({ orders, tz }) {
+  const pins = orders.filter((o) => o.requested_delivery_at).map((o) => ({ o, m: localMinutes(o.requested_delivery_at, tz) })).filter((p) => p.m !== null);
+  const nowM = localMinutes((/* @__PURE__ */ new Date()).toISOString(), tz);
+  let lo = 8 * 60, hi = 20 * 60;
+  for (const p of pins) {
+    lo = Math.min(lo, Math.floor(p.m / 60) * 60);
+    hi = Math.max(hi, Math.ceil(p.m / 60) * 60);
+  }
+  const pos = (m) => (m - lo) / (hi - lo) * 100;
+  const ticks = [];
+  const step = hi - lo > 12 * 60 ? 240 : 180;
+  for (let t = lo; t <= hi; t += step) ticks.push(t);
+  const sorted = pins.slice().sort((a, b) => a.m - b.m);
+  sorted.forEach((p, i) => {
+    p.stack = 0;
+    for (let j = 0; j < i; j++) if (Math.abs(sorted[j].m - p.m) < 30 && sorted[j].stack === p.stack) p.stack++;
+  });
+  const now = Date.now();
+  const nowIn = nowM !== null && nowM >= lo && nowM <= hi;
+  return h(
+    Card,
+    { title: "Today\u2019s timeline", i: 3, right: h(Muted, null, "when orders are due") },
+    pins.length ? h(
+      "div",
+      { className: "fs-tl", role: "list", "aria-label": "Orders due today by time" },
+      h("div", { className: "fs-tl-axis" }),
+      nowIn ? h("div", { className: "fs-tl-past", style: { width: pos(nowM) + "%" } }) : null,
+      ticks.map((t) => h("span", { key: t, className: "fs-tl-tick", style: { left: pos(t) + "%" } }, String(Math.floor(t / 60)).padStart(2, "0") + ":00")),
+      nowIn ? h("div", { className: "fs-tl-now", style: { left: "calc(" + pos(nowM) + "% - 1px)" } }) : null,
+      sorted.map((p) => {
+        const st = orderState(p.o, now);
+        const label = fmtTime(p.o.requested_delivery_at, tz) + " " + p.o.order_number + " " + (p.o.customer && p.o.customer.name || "") + " - " + STATE_WORD[st];
+        return h("button", {
+          key: p.o.id,
+          type: "button",
+          role: "listitem",
+          className: "fs-tl-pin",
+          "data-stack": p.stack ? "1" : void 0,
+          title: label,
+          "aria-label": label,
+          onClick: () => openOrder(p.o.id),
+          style: { left: pos(p.m) + "%", background: STATE_COLOR[st], "--stack": p.stack }
+        });
+      })
+    ) : h(Empty, { title: "Nothing due today", hint: "Due orders appear on this line at their delivery time." })
+  );
+}
+var SEV = {
+  critical: { color: "var(--ui-red)", icon: "flame" },
+  warning: { color: "var(--ui-yellow)", icon: "bell" },
+  info: { color: "var(--ui-text-tertiary)", icon: "info" }
+};
+var KIND_ICON = { low_stock: "package", freshness: "clock", unpaid_ready: "credit-card", delivery_risk: "watch", pending_approval: "inbox", late_order: "flame" };
+function ApprovalAction({ a, cur }) {
+  const act = useAct();
+  const [dlg, setDlg] = useState2(null);
+  const total = a.payload && typeof a.payload.total_minor === "number" ? " - " + money(a.payload.total_minor, cur) : "";
+  return h(
+    "div",
+    { className: "fs-action" },
+    h("span", { className: "fs-sev", style: { "--sev": "var(--ui-yellow)" } }, h(Icon, { name: "inbox", size: 14 })),
+    h("div", { style: { minWidth: 0 } }, h("div", { className: "fs-action-t" }, a.summary), h("div", { className: "fs-action-d" }, a.ref + total + " - waiting for you")),
+    h(
+      "div",
+      { className: "fs-action-btns" },
+      h(Button2, { size: "xs", onClick: () => setDlg("approve") }, "Approve"),
+      h(Button2, { size: "xs", variant: "outline", onClick: () => setDlg("reject") }, "Reject")
+    ),
+    dlg ? h(Confirm, {
+      open: true,
+      onClose: () => setDlg(null),
+      destructive: dlg === "reject",
+      title: (dlg === "approve" ? "Approve " : "Reject ") + a.ref + "?",
+      description: a.summary,
+      confirmLabel: dlg === "approve" ? "Approve" : "Reject",
+      busyLabel: dlg === "approve" ? "Applying..." : void 0,
+      onConfirm: async () => {
+        const res = await act.mutateAsync({ path: "/approvals/" + encodeURIComponent(a.ref || a.id) + "/" + dlg, body: {} });
+        if (dlg === "approve" && res && res.status === "FAILED") throw new Error((res.error || "The change could not be applied.") + " Nothing was changed.");
+        toast(dlg === "approve" ? "success" : "info", a.ref + (dlg === "approve" ? " approved" : " rejected"));
+      }
+    }) : null
+  );
+}
+function alertGo(r) {
+  if (!r) return null;
+  if (r.type === "order") return () => openOrder(r.id);
+  if (r.type === "approval") return () => goTo("approvals");
+  if (r.type === "inventory") return () => goTo("inventory");
+  if (r.type === "delivery") return () => goTo("delivery");
+  return null;
+}
+function AlertRow(a, key) {
+  const sev = SEV[a.severity] || SEV.info;
+  const go = alertGo(a.ref);
+  return h(
+    "div",
+    { key, className: "fs-action" },
+    h("span", { className: "fs-sev", style: { "--sev": sev.color } }, h(Icon, { name: KIND_ICON[a.kind] || sev.icon, size: 14 })),
+    h("div", { style: { minWidth: 0 } }, h("div", { className: "fs-action-t" }, a.title), h("div", { className: "fs-action-d" }, a.detail)),
+    go ? h("div", { className: "fs-action-btns" }, h(Button2, { size: "xs", variant: "ghost", onClick: go }, a.ref && a.ref.label || "Open")) : h("span", null)
+  );
+}
+function NeedsYou({ d, cur }) {
+  const alerts = d.alerts.filter((a) => a.kind !== "pending_approval");
+  const n = alerts.length + d.pending_approvals.length;
+  const crit = alerts.some((a) => a.severity === "critical");
+  return h(
+    Card,
+    { title: "Needs you", i: 4, right: n ? h("span", { className: "fs-chip" }, h("span", { className: "fs-dot", style: { background: crit ? C.bad : C.warn } }), plural(n, "item")) : null },
+    n ? h(
+      "div",
+      null,
+      alerts.filter((a) => a.severity === "critical").map((a, i) => AlertRow(a, "c" + i)),
+      d.pending_approvals.map((a) => h(ApprovalAction, { key: a.id, a, cur })),
+      alerts.filter((a) => a.severity !== "critical").map((a, i) => AlertRow(a, "w" + i))
+    ) : h(Empty, { title: "All clear", hint: "Nothing needs your attention right now. Your team will ask here first." })
+  );
+}
+function DueToday({ orders, tz, cur }) {
+  const now = Date.now();
+  const sorted = orders.slice().sort((a, b) => String(a.requested_delivery_at).localeCompare(String(b.requested_delivery_at)));
+  return h(
+    Card,
+    { title: "Due today", i: 5, right: h(Linkish, { onClick: () => goTo("orders", { due: "today" }) }, "All orders") },
+    sorted.length ? h("div", { role: "list" }, sorted.map((o, i) => {
+      const st = orderState(o, now);
+      return h(
+        "button",
+        {
+          key: o.id,
+          type: "button",
+          role: "listitem",
+          className: "fs-click",
+          onClick: () => openOrder(o.id),
+          "aria-label": o.order_number + " " + (o.customer && o.customer.name || ""),
+          style: { display: "grid", gridTemplateColumns: "42px minmax(0,1fr) auto", gap: 10, alignItems: "center", width: "100%", padding: "8px 6px", borderTop: i ? "1px solid " + C.line : "none", borderRadius: 8 }
+        },
+        h("span", { className: "fs-num", style: txt(12.5, st === "late" ? C.bad : C.t1, { fontWeight: 600 }) }, fmtTime(o.requested_delivery_at, tz)),
+        h(
+          "span",
+          { style: col(1, { minWidth: 0 }) },
+          h("span", { style: row(6, { minWidth: 0 }) }, h("span", { style: txt(12.5, C.t1, { fontWeight: 550, ...clip }) }, o.customer && o.customer.name || o.order_number), h(Muted, { size: 11 }, o.order_number)),
+          h("span", { style: txt(11.5, C.t3, clip) }, o.headline || "")
+        ),
+        h(
+          "span",
+          { style: col(3, { alignItems: "flex-end" }) },
+          h("span", { className: "fs-chip" }, h("span", { className: "fs-dot", style: { background: STATE_COLOR[st] } }), st === "late" ? dueLabel(o.requested_delivery_at) : statusLabel(o.status)),
+          h("span", { className: "fs-num", style: txt(11, C.t3) }, money(o.total_minor, cur))
+        )
+      );
+    })) : h(Empty, { title: "Nothing due today", hint: "Upcoming orders are in the Orders tab." })
+  );
+}
+function StockCard({ items }) {
+  return h(
+    Card,
+    { title: "Running low", i: 6, right: h(Linkish, { onClick: () => goTo("inventory") }, "Stock") },
+    items.length ? h("div", { style: col(12) }, items.map((it) => {
+      const max = Math.max(it.reorder_threshold * 1.6, it.quantity_available, 1);
+      const pctA = Math.max(2, Math.max(0, it.quantity_available) / max * 100);
+      const crit = it.quantity_available <= 0;
+      return h(
+        "div",
+        { key: it.id, style: col(5) },
+        h(
+          "div",
+          { style: row(8, { justifyContent: "space-between" }) },
+          h("span", { style: txt(12.5, C.t1, { fontWeight: 550, ...clip }) }, it.name),
+          h("span", { className: "fs-num", style: txt(11.5, crit ? C.bad : C.warn, { whiteSpace: "nowrap" }) }, num(it.quantity_available) + " " + it.unit + " free")
+        ),
+        h(
+          "div",
+          { className: "fs-meter", role: "img", "aria-label": num(it.quantity_available) + " free, reorder at " + num(it.reorder_threshold) },
+          h("i", { style: { width: pctA + "%", "--c": crit ? "var(--ui-red)" : "var(--ui-yellow)" } }),
+          h("b", { style: { left: it.reorder_threshold / max * 100 + "%" } })
+        ),
+        h(Muted, { size: 10.5 }, "reorder at " + num(it.reorder_threshold) + (it.supplier ? " - " + it.supplier : ""))
+      );
+    })) : h(Empty, { title: "Stock looks fine", hint: "Items below their reorder level show up here." })
+  );
+}
+function DeliveriesCard({ list, tz }) {
+  return h(
+    Card,
+    { title: "Deliveries today", i: 7, right: h(Linkish, { onClick: () => goTo("delivery") }, "Schedule") },
+    list.length ? h("div", null, list.map((dl, i) => h(
+      "div",
+      { key: dl.id, style: { display: "grid", gridTemplateColumns: "42px minmax(0,1fr) auto", gap: 10, alignItems: "center", padding: "7px 0", borderTop: i ? "1px solid " + C.line : "none" } },
+      h("span", { className: "fs-num", style: txt(12.5, dl.is_late ? C.bad : C.t1, { fontWeight: 600 }) }, fmtTime(dl.scheduled_at, tz)),
+      h("span", { style: col(1, { minWidth: 0 }) }, h("span", { style: txt(12.5, C.t1, clip) }, (dl.recipient_name || "") + " - " + dl.order_number), h("span", { style: txt(11, C.t3, clip) }, dl.address || "")),
+      h("span", { style: row(5, txt(11, C.t3, { whiteSpace: "nowrap" })) }, h(Icon, { name: "person", size: 12 }), dl.assigned_to || "no driver")
+    ))) : h(Empty, { title: "No deliveries today" })
+  );
+}
+function SetupHero() {
+  const act = useAct();
+  const [busy, setBusy] = useState2(false);
+  return h(
+    "section",
+    { className: "fs-hero fs-enter", style: { gridTemplateColumns: "minmax(0,1fr)", textAlign: "center", justifyItems: "center", padding: "32px 20px" } },
+    h(Bloom, { orders: [], size: 120 }),
+    h(
+      "div",
+      null,
+      h("h2", { className: "fs-hero-title" }, "Welcome to your flower shop"),
+      h("p", { className: "fs-hero-story", style: { margin: "6px auto 16px" } }, "Set up your shop in a few minutes - name, currency, which helpers you want - or load a demo shop with sample orders and stock to look around first. Demo data is clearly marked and can be removed any time."),
+      h(
+        "div",
+        { style: row(10, { justifyContent: "center", flexWrap: "wrap" }) },
+        h(Button2, { onClick: () => goTo("setup") }, "Set up your shop"),
+        h(Button2, { variant: "outline", disabled: busy, onClick: async () => {
+          setBusy(true);
+          await runAct(act, { path: "/demo/seed", body: {} }, "Demo shop loaded");
+          setBusy(false);
+        } }, busy ? "Loading demo..." : "Load demo shop")
+      )
+    )
+  );
+}
+function OverviewPage() {
+  const { currency, tz, profile } = useShop();
+  const q = useOverview();
+  const health = useApi(["health"], "/health", { interval: 3e4 });
+  const onboarding = useApi(["onboarding"], "/onboarding", { interval: 3e4 });
+  const hd = health.data;
+  const empty = hd && hd.counts && !hd.counts.orders && !hd.counts.inventory_items && !hd.onboarding_complete;
+  return h(
+    "div",
+    { className: "fs-stack" },
+    h("div", { style: row(10, { justifyContent: "flex-end", marginBottom: -4 }) }, h(Updated, { q, tz }), h(Button2, { size: "xs", variant: "ghost", onClick: () => q.refetch() }, "Refresh")),
+    empty ? h(SetupHero, {}) : null,
+    !empty && onboarding.data && !onboarding.data.complete && hd && hd.counts && (hd.counts.orders || hd.counts.inventory_items) ? h("div", { className: "fs-card", style: row(8, { padding: "8px 12px", flexDirection: "row" }) }, h(Icon, { name: "info", size: 14, style: { color: C.warn } }), h("span", { style: txt(12, C.t2) }, "Setup is not finished yet."), h(Linkish, { onClick: () => goTo("setup") }, "Continue setup")) : null,
+    empty ? null : h(Q, { q, skeleton: h("div", { className: "fs-stack" }, h(SkeletonBlock, { rows: 1, height: 200 }), h(SkeletonBlock, { rows: 2, height: 90 })) }, (d) => {
+      const cur = d.currency || currency;
+      const due = (d.due_today || []).filter((o) => o.status !== "DRAFT" && o.status !== "CANCELLED");
+      return h(
+        "div",
+        { className: "fs-grid", style: { alignItems: "stretch" } },
+        h("div", { className: "fs-s8" }, h(TodayHero, { d, due, cur, tz, shopName: d.business_name || profile.business_name })),
+        h("div", { className: "fs-s4" }, h(MoneyCard, { m: d.metrics, cur })),
+        h("div", null, h(FlowStrip, {})),
+        h("div", { className: "fs-s7" }, h(NeedsYou, { d, cur })),
+        h("div", { className: "fs-s5" }, h("div", { className: "fs-stack" }, h(DayTimeline, { orders: due, tz }), h(StockCard, { items: d.low_stock || [] }))),
+        h("div", { className: "fs-s7" }, h(DueToday, { orders: due, tz, cur })),
+        h("div", { className: "fs-s5" }, h(DeliveriesCard, { list: d.deliveries_today || [], tz })),
+        d.data_gaps && d.data_gaps.length ? h("div", { style: col(2) }, d.data_gaps.map((g, i) => h("div", { key: i, style: row(6, txt(11.5, C.t3)) }, h(Icon, { name: "info", size: 12 }), g))) : null
+      );
+    })
+  );
+}
+
+// desktop/src/pages/orders.js
+import { useEffect as useEffect3, useState as useState6 } from "react";
+import { Button as Button5, Input as Input3, useValue } from "@hermes/plugin-sdk";
+
+// desktop/src/components/common.js
+import { useState as useState3 } from "react";
+import { Button as Button3 } from "@hermes/plugin-sdk";
 function StatusPill({ status }) {
   return h(Pill, { tone: statusTone(status) }, statusLabel(status));
 }
@@ -917,57 +1427,46 @@ function Due({ iso, late, status }) {
   if (!iso) return h("span", { style: txt(12, C.t3) }, "no date");
   const tone = done ? "muted" : dueTone(iso, late);
   const label = done ? fmtDateTime(iso, tz) : dueLabel(iso);
-  return h("span", { style: txt(12, toneColor(tone), { whiteSpace: "nowrap", fontWeight: tone === "bad" ? 600 : 400 }), title: fmtDateTime(iso, tz) }, label);
-}
-function OrderLine({ order, onOpen }) {
-  const { currency } = useShop();
-  return h(
-    "button",
-    {
-      type: "button",
-      onClick: () => onOpen(order.id),
-      style: { display: "grid", gridTemplateColumns: "74px minmax(0,1fr) auto auto", gap: 10, alignItems: "center", width: "100%", padding: "6px 4px", background: "none", border: 0, borderTop: "1px solid " + C.line, color: "inherit", cursor: "pointer", textAlign: "left" }
-    },
-    h("span", { style: txt(12, C.t1, { fontWeight: 600, fontVariantNumeric: "tabular-nums" }) }, order.order_number),
-    h("span", { style: col(0, { minWidth: 0 }) }, h("span", { style: txt(12, C.t1, clip) }, order.customer ? order.customer.name : "-"), h("span", { style: txt(11, C.t3, clip) }, order.headline || "")),
-    h(Due, { iso: order.requested_delivery_at, late: order.is_late, status: order.status }),
-    h(StatusPill, { status: order.status })
-  );
-}
-function TaskLine({ task, onOpen }) {
-  const { tz } = useShop();
-  return h(
-    "button",
-    {
-      type: "button",
-      onClick: () => onOpen && onOpen(task.order_id),
-      style: { display: "grid", gridTemplateColumns: "74px minmax(0,1fr) auto", gap: 10, alignItems: "center", width: "100%", padding: "6px 4px", background: "none", border: 0, borderTop: "1px solid " + C.line, color: "inherit", cursor: "pointer", textAlign: "left" }
-    },
-    h("span", { style: txt(12, C.t1, { fontWeight: 600 }) }, task.order_number),
-    h("span", { style: col(0, { minWidth: 0 }) }, h("span", { style: txt(12, C.t1, clip) }, task.customer_name || "-"), h("span", { style: txt(11, C.t3, clip) }, (task.headline || "") + (task.scheduled_due ? " - due " + fmtDateTime(task.scheduled_due, tz) : ""))),
-    h(Pill, { tone: task.is_late ? "bad" : task.status === "BLOCKED" ? "warn" : "muted" }, task.is_late ? "Late - " + prodLabel(task.status) : prodLabel(task.status))
-  );
+  const icon = tone === "bad" ? "flame" : tone === "warn" ? "bell" : null;
+  return h("span", { style: txt(12, toneColor(tone), { whiteSpace: "nowrap", fontWeight: tone === "bad" ? 600 : 400, display: "inline-flex", alignItems: "center", gap: 4 }), title: fmtDateTime(iso, tz) }, icon ? h(Icon, { name: icon, size: 11 }) : null, label);
 }
 var decidedTone = (s) => s === "APPROVED" ? "ok" : s === "PENDING" ? "warn" : "bad";
 var decidedLabel = (s) => s === "APPROVED" ? "Approved" : s === "REJECTED" ? "Rejected" : s === "FAILED" ? "Approved but failed" : "Waiting for you";
-function ApprovalItem({ approval, compact }) {
+var decidedIcon = (s) => s === "APPROVED" ? "pass-filled" : s === "PENDING" ? "bell" : "flame";
+function Payload({ payload, money: fmt }) {
+  const keys = Object.keys(payload || {});
+  if (!keys.length) return null;
+  return h(
+    "div",
+    { className: "fs-pay" },
+    keys.slice(0, 8).map((k) => {
+      const v = payload[k];
+      let shown;
+      if (/_minor$/.test(k) && typeof v === "number") shown = fmt(v);
+      else if (v && typeof v === "object") shown = JSON.stringify(v).slice(0, 80);
+      else shown = String(v);
+      return h("div", { key: k }, h("span", null, humanize(k.replace(/_minor$/, ""))), h("span", null, shown));
+    })
+  );
+}
+function ApprovalItem({ approval, compact, i }) {
   const { currency, tz } = useShop();
   const act = useAct();
-  const [dlg, setDlg] = useState2(null);
-  const [reason, setReason] = useState2("");
+  const [dlg, setDlg] = useState3(null);
+  const [reason, setReason] = useState3("");
   const a = approval;
   const pending = a.status === "PENDING";
   const mFmt = (m) => money(m, currency);
   return h(
     "div",
-    { style: col(6, { padding: compact ? "8px 0" : 12, borderTop: compact ? "1px solid " + C.line : "none", border: compact ? void 0 : "1px solid " + C.line, borderRadius: compact ? 0 : 8 }) },
-    h("div", { style: row(8, { justifyContent: "space-between", alignItems: "flex-start" }) }, h("div", { style: txt(12.5, C.t1, { fontWeight: 500 }) }, a.summary), h("div", { style: row(6, { flex: "none" }) }, h(Pill, { tone: decidedTone(a.status) }, decidedLabel(a.status)))),
-    h("div", { style: txt(11, C.t3) }, a.ref + " - " + approvalActionLabel(a.action) + " - asked by " + actorLabel(a.requested_by) + " - " + fmtDateTime(a.created_at, tz)),
-    !compact ? h(PayloadPreview, { payload: a.payload, money: mFmt }) : null,
+    { className: "fs-ap" + (compact ? " fs-ap-compact" : "") + (i !== void 0 ? " fs-enter" : ""), "data-state": compact ? void 0 : a.status, style: i !== void 0 ? { "--i": i } : void 0 },
+    h("div", { className: "fs-ap-top" }, h("div", { className: "fs-ap-sum" }, a.summary), h("div", { style: { flex: "none" } }, h(Pill, { tone: decidedTone(a.status) }, h(Icon, { name: decidedIcon(a.status), size: 10, style: { marginRight: 4 } }), decidedLabel(a.status)))),
+    h("div", { className: "fs-ap-meta" }, a.ref + " - " + approvalActionLabel(a.action) + " - asked by " + actorLabel(a.requested_by) + " - " + fmtDateTime(a.created_at, tz)),
+    !compact ? h(Payload, { payload: a.payload, money: mFmt }) : null,
     a.status === "FAILED" && a.error ? h("div", { style: txt(12, C.bad) }, "Nothing was changed: " + a.error) : null,
     a.status === "REJECTED" && a.decision_note ? h("div", { style: txt(12, C.t2) }, "Reason: " + a.decision_note) : null,
-    !pending && a.decided_by ? h("div", { style: txt(11, C.t3) }, "Decided by " + actorLabel(a.decided_by) + (a.decided_at ? " at " + fmtDateTime(a.decided_at, tz) : "")) : null,
-    pending ? h("div", { style: row(8) }, h(Button2, { size: "xs", onClick: () => setDlg("approve") }, "Approve"), h(Button2, { size: "xs", variant: "outline", onClick: () => setDlg("reject") }, "Reject")) : null,
+    !pending && a.decided_by ? h("div", { className: "fs-ap-meta" }, "Decided by " + actorLabel(a.decided_by) + (a.decided_at ? " at " + fmtDateTime(a.decided_at, tz) : "")) : null,
+    pending ? h("div", { className: "fs-ap-btns" }, h(Button3, { size: "xs", onClick: () => setDlg("approve") }, "Approve"), h(Button3, { size: "xs", variant: "outline", onClick: () => setDlg("reject") }, "Reject")) : null,
     dlg === "approve" ? h(Confirm, {
       open: true,
       onClose: () => setDlg(null),
@@ -999,124 +1498,6 @@ function ApprovalItem({ approval, compact }) {
     ) : null
   );
 }
-
-// desktop/src/pages/overview.js
-var SEV_TONE = { critical: "bad", warning: "warn", info: "muted" };
-function SetupHero() {
-  const act = useAct();
-  const [busy, setBusy] = useState3(false);
-  return h(
-    "div",
-    { style: { border: "1px solid " + C.line, borderRadius: 10, padding: "28px 24px", textAlign: "center", background: "color-mix(in srgb, var(--ui-bg-tertiary) 40%, transparent)" } },
-    h("div", { style: { fontSize: 28, color: C.rose, lineHeight: 1 }, "aria-hidden": "true" }, "\u273F"),
-    h("h2", { style: { margin: "8px 0 4px", fontSize: 18, fontWeight: 600, color: C.t1 } }, "Welcome to your flower shop"),
-    h("p", { style: txt(13, C.t2, { maxWidth: 520, margin: "0 auto 16px" }) }, "Set up your shop in a few minutes - name, currency, which helpers you want - or load a demo shop with sample orders and stock to look around first. Demo data is clearly marked and can be removed any time."),
-    h(
-      "div",
-      { style: row(10, { justifyContent: "center" }) },
-      h(Button3, { onClick: () => goTo("setup") }, "Set up your shop"),
-      h(Button3, { variant: "outline", disabled: busy, onClick: async () => {
-        setBusy(true);
-        await runAct(act, { path: "/demo/seed", body: {} }, "Demo shop loaded");
-        setBusy(false);
-      } }, busy ? "Loading demo..." : "Load demo shop")
-    )
-  );
-}
-function OverviewPage() {
-  const { currency, tz, profile } = useShop();
-  const q = useOverview();
-  const health = useApi(["health"], "/health", { interval: 3e4 });
-  const onboarding = useApi(["onboarding"], "/onboarding", { interval: 3e4 });
-  const hd = health.data;
-  const empty = hd && hd.counts && !hd.counts.orders && !hd.counts.inventory_items && !hd.onboarding_complete;
-  const m = q.data ? q.data.metrics : null;
-  const M = (label, value, extra) => h(Metric, { key: label, label, value, ...extra });
-  return h(
-    "div",
-    { style: col(14) },
-    h(
-      "div",
-      { style: row(12, { justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap" }) },
-      h("div", null, h("div", { style: row(8) }, h("span", { style: { color: C.rose, fontSize: 17 }, "aria-hidden": "true" }, "\u273F"), h("h2", { style: { margin: 0, fontSize: 17, fontWeight: 600, color: C.t1 } }, profile.business_name || "Your flower shop")), h("div", { style: txt(12, C.t3) }, fmtLongDate(null, tz) + (q.data ? "" : ""))),
-      h("div", { style: row(10) }, h(Updated, { q, tz }), h(Button3, { size: "xs", variant: "ghost", onClick: () => q.refetch() }, "Refresh"))
-    ),
-    empty ? h(SetupHero, {}) : null,
-    !empty && onboarding.data && !onboarding.data.complete && hd && hd.counts && (hd.counts.orders || hd.counts.inventory_items) ? h("div", { style: row(8, { border: "1px solid " + C.line, borderRadius: 8, padding: "8px 12px" }) }, h(Dot, { tone: "warn" }), h("span", { style: txt(12, C.t2) }, "Setup is not finished yet."), h(Linkish, { onClick: () => goTo("setup") }, "Continue setup")) : null,
-    h(Q, { q, skeleton: h("div", { style: grid(150, 10) }, [1, 2, 3, 4, 5, 6, 7, 8].map((i) => h("div", { key: i }, h(SkeletonBlock, { rows: 1, height: 74 })))) }, (d) => {
-      const mm = d.metrics;
-      const cur = d.currency || currency;
-      return h(
-        "div",
-        { style: col(14) },
-        h(
-          "div",
-          { style: grid(150, 10) },
-          M("Due today", num(mm.orders_due_today), { sub: "orders", onClick: () => goTo("orders", { due: "today" }) }),
-          M("Late", num(mm.late_orders), { tone: mm.late_orders ? "bad" : void 0, sub: mm.late_orders ? "need action" : "none", onClick: () => goTo("orders", { due: "late" }) }),
-          M("Waiting for approval", num(mm.pending_approvals), { tone: mm.pending_approvals ? "warn" : void 0, sub: "owner decisions", onClick: () => goTo("approvals") }),
-          M("Awaiting confirmation", num(mm.pending_confirmation), { onClick: () => goTo("orders", { status: "PENDING_CONFIRMATION" }) }),
-          M("In production", num(mm.in_production), { onClick: () => goTo("production") }),
-          M("Ready", num(mm.ready), { sub: "to hand over", onClick: () => goTo("orders", { status: "READY" }) }),
-          M("Out for delivery", num(mm.out_for_delivery), { onClick: () => goTo("delivery") }),
-          M("Low stock", num(mm.low_stock_items), { tone: mm.low_stock_items ? "warn" : void 0, sub: "items", onClick: () => goTo("inventory") }),
-          M("Expected revenue today", money(mm.expected_revenue_today_minor, cur), { onClick: () => goTo("finance") }),
-          M("Payments today", money(mm.payments_today_minor, cur), { onClick: () => goTo("finance") }),
-          M("Open order value", money(mm.open_order_value_minor, cur), { sub: "not yet completed" })
-        ),
-        h(
-          "div",
-          { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(440px, 1fr))", gap: 12, alignItems: "start" } },
-          h(
-            Card,
-            { title: "What needs attention", right: h(Muted, null, d.alerts.length + (d.alerts.length === 1 ? " item" : " items")) },
-            d.alerts.length ? d.alerts.map((a, i) => h("div", { key: i, style: row(8, { alignItems: "flex-start", padding: "6px 0", borderTop: i ? "1px solid " + C.line : "none" }) }, h("div", { style: { paddingTop: 5 } }, h(Dot, { tone: SEV_TONE[a.severity] === "muted" ? "muted" : SEV_TONE[a.severity] })), h("div", { style: col(1, { minWidth: 0, flex: 1 }) }, h("div", { style: txt(12.5, C.t1, { fontWeight: 500 }) }, a.title), h("div", { style: txt(11.5, C.t3) }, a.detail)), a.ref ? h(AlertLink, { alert: a }) : null)) : h(Empty, { title: "All clear", hint: "Nothing needs your attention right now." })
-          ),
-          h(
-            Card,
-            { title: "Pending approvals", right: d.pending_approvals.length ? h(Pill, { tone: "warn" }, String(d.pending_approvals.length)) : null },
-            d.pending_approvals.length ? d.pending_approvals.map((a) => h(ApprovalItem, { key: a.id, approval: a, compact: true })) : h(Empty, { title: "No approvals waiting", hint: "When your AI team wants to confirm an order or change stock, it appears here first." })
-          ),
-          h(
-            Card,
-            { title: "Due today", right: h(Linkish, { onClick: () => goTo("orders", { due: "today" }) }, "All") },
-            d.due_today.length ? d.due_today.map((o) => h(OrderLine, { key: o.id, order: o, onOpen: openOrder })) : h(Empty, { title: "Nothing due today", hint: "Upcoming orders are in the Orders tab." })
-          ),
-          h(
-            Card,
-            { title: "Production queue", right: h(Linkish, { onClick: () => goTo("production") }, "Board") },
-            d.production_queue.length ? d.production_queue.map((t) => h(TaskLine, { key: t.id, task: t, onOpen: openOrder })) : h(Empty, { title: "No bouquets waiting", hint: "Confirmed orders create production tasks automatically." })
-          ),
-          h(
-            Card,
-            { title: "Low stock", right: h(Linkish, { onClick: () => goTo("inventory") }, "Inventory") },
-            d.low_stock.length ? d.low_stock.map((it) => h("div", { key: it.id, style: row(8, { justifyContent: "space-between", padding: "5px 0", borderTop: "1px solid " + C.line }) }, h("span", { style: txt(12, C.t1) }, it.name), h("span", { style: txt(12, C.warn, { fontVariantNumeric: "tabular-nums" }) }, num(it.quantity_available) + " " + it.unit + " left (reorder at " + num(it.reorder_threshold) + ")"))) : h(Empty, { title: "Stock looks fine" })
-          ),
-          h(
-            Card,
-            { title: "Deliveries today", right: h(Linkish, { onClick: () => goTo("delivery") }, "Schedule") },
-            d.deliveries_today.length ? d.deliveries_today.map((dl) => h("div", { key: dl.id, style: row(8, { justifyContent: "space-between", padding: "5px 0", borderTop: "1px solid " + C.line }) }, h("span", { style: col(0, { minWidth: 0 }) }, h("span", { style: txt(12, C.t1, clip) }, dl.order_number + " - " + (dl.recipient_name || "")), h("span", { style: txt(11, C.t3, clip) }, dl.address || "")), h("span", { style: txt(12, dl.is_late ? C.bad : C.t2, { whiteSpace: "nowrap" }) }, fmtTime(dl.scheduled_at, tz)))) : h(Empty, { title: "No deliveries today" })
-          )
-        ),
-        d.data_gaps && d.data_gaps.length ? h("div", { style: col(2) }, d.data_gaps.map((g, i) => h("div", { key: i, style: txt(12, C.t3) }, "Note: " + g))) : null
-      );
-    })
-  );
-}
-function AlertLink({ alert }) {
-  const r = alert.ref;
-  const go = () => {
-    if (r.type === "order") openOrder(r.id);
-    else if (r.type === "approval") goTo("approvals");
-    else if (r.type === "inventory") goTo("inventory");
-    else if (r.type === "delivery") goTo("delivery");
-  };
-  return h(Button3, { size: "xs", variant: "ghost", onClick: go }, r.label || "Open");
-}
-
-// desktop/src/pages/orders.js
-import { useEffect as useEffect2, useState as useState6 } from "react";
-import { Button as Button5, Input as Input3, useValue } from "@hermes/plugin-sdk";
 
 // desktop/src/components/dialogs.js
 import { useState as useState4 } from "react";
@@ -1546,20 +1927,258 @@ function AvailabilityBlock({ data }) {
 // desktop/src/components/order-panel.js
 import { useState as useState5 } from "react";
 import { Button as Button4 } from "@hermes/plugin-sdk";
+
+// desktop/src/components/kit.js
+import { useEffect as useEffect2, useRef as useRef2 } from "react";
+
+// desktop/src/lib/styles-pages.js
+var PAGES_CSS = `
+/* ---- page head + toolbar ---- */
+.fs-ph{display:flex;align-items:flex-end;justify-content:space-between;gap:8px 14px;flex-wrap:wrap;margin-bottom:14px;min-width:0}
+.fs-ph-t{margin:0;font-size:15px;font-weight:600;line-height:1.3;color:var(--fs-t1)}
+.fs-ph-s{font-size:12px;line-height:1.45;color:var(--fs-t3)}
+.fs-ph-r{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.fs-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;min-width:0}
+.fs-bar>.fs-grow{flex:1 1 220px;min-width:0;max-width:340px}
+.fs-bar>.fs-fill{flex:1 1 0;min-width:0}
+.fs-seg{max-width:100%;overflow-x:auto;scrollbar-width:none}
+.fs-seg::-webkit-scrollbar{display:none}
+.fs-only-narrow{display:none!important}
+.fs-page{min-width:0}
+.fs-page .fs-kpis{margin-bottom:12px}
+.fs-page-stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+.fs-minis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:var(--fs-gap)}
+.fs-minis .fs-kpi{background:transparent}
+.fs-kpis3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.fs-note{font-size:11px;line-height:1.45;color:var(--fs-t3)}
+.fs-hr{border-top:1px solid var(--fs-line)}
+
+/* ---- key/value rows that wrap instead of overflowing ---- */
+.fs-kv{display:flex;align-items:baseline;justify-content:space-between;gap:12px;min-width:0;font-size:12px;line-height:1.45}
+.fs-kv>span:first-child{color:var(--fs-t3);flex:none}
+.fs-kv>span:last-child{color:var(--fs-t1);text-align:right;min-width:0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+
+/* ---- master / detail ---- */
+.fs-md{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
+.fs-md-main,.fs-md-side{min-width:0}
+.fs-md-side{position:sticky;top:0;max-height:calc(100vh - 160px)}
+@container fs (min-width: 960px){
+  .fs-md[data-open=true]{grid-template-columns:minmax(0,1fr) minmax(340px,420px)}
+  .fs-md-side{overflow-y:auto;padding-right:2px}
+}
+@container fs (max-width: 959px){
+  .fs-md[data-open=true] .fs-md-main{display:none}
+  .fs-md-side{position:static;max-height:none}
+  .fs-only-narrow{display:inline-flex!important}
+}
+
+/* ---- table <-> row-card switch ---- */
+.fs-conly{display:none}
+@container fs (max-width: 859px){.fs-tonly{display:none!important}.fs-conly{display:grid!important}}
+.fs-md[data-open=true] .fs-tonly{display:none!important}
+.fs-md[data-open=true] .fs-conly{display:grid!important}
+.fs-rows{grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:8px}
+.fs-md[data-open=true] .fs-rows{grid-template-columns:minmax(0,1fr)}
+.fs-rowcard{all:unset;box-sizing:border-box;display:flex;flex-direction:column;gap:6px;min-width:0;padding:10px 12px;border:1px solid var(--fs-line);border-radius:12px;background:var(--fs-card);color:var(--fs-t1);cursor:pointer;
+  transition:background var(--fs-dur-1) var(--fs-ease),transform var(--fs-dur-1) var(--fs-ease),border-color var(--fs-dur-1) var(--fs-ease)}
+div.fs-rowcard{cursor:default}
+button.fs-rowcard:hover{background:var(--fs-card-hi);transform:translateY(-1px)}
+button.fs-rowcard:active{transform:none}
+.fs-rowcard:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px}
+.fs-rowcard[aria-current=true]{border-color:var(--fs-rose);background:var(--fs-rose-soft)}
+.fs-rowcard[data-late=true]{border-color:color-mix(in srgb,var(--fs-bad) 60%,var(--fs-line))}
+.fs-rc-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-width:0}
+.fs-rc-bot{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
+.fs-rc-bot .fs-spacer{flex:1}
+.fs-trow{all:unset;box-sizing:border-box;display:grid;grid-template-columns:84px minmax(0,1.4fr) minmax(0,150px) minmax(0,120px) minmax(0,110px) minmax(0,100px);gap:10px;align-items:center;width:100%;padding:8px;border-top:1px solid var(--fs-line);cursor:pointer;color:var(--fs-t1);
+  transition:background var(--fs-dur-1) var(--fs-ease)}
+.fs-trow:hover{background:var(--fs-card)}
+.fs-trow:focus-visible{outline:2px solid var(--ui-accent);outline-offset:-2px}
+.fs-trow[aria-current=true]{background:var(--fs-rose-soft);box-shadow:inset 3px 0 0 var(--fs-rose)}
+.fs-thead{display:grid;grid-template-columns:84px minmax(0,1.4fr) minmax(0,150px) minmax(0,120px) minmax(0,110px) minmax(0,100px);gap:10px;padding:4px 8px}
+.fs-ptable{width:100%;border-collapse:collapse}
+.fs-ptable tbody tr{transition:background var(--fs-dur-1) var(--fs-ease)}
+.fs-ptable tbody tr:hover{background:var(--fs-card)}
+.fs-ptable tbody tr[data-active=true]{background:var(--fs-rose-soft)}
+
+/* ---- stock ---- */
+.fs-stockbar{width:96px}
+.fs-stockbar .fs-meter{height:6px}
+.fs-ghostbtn{all:unset;box-sizing:border-box;cursor:pointer;color:var(--fs-t1);font-weight:550;font-size:12.5px;line-height:1.35;min-width:0;overflow-wrap:anywhere}
+.fs-ghostbtn:hover{text-decoration:underline;text-underline-offset:3px}
+.fs-ghostbtn:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px;border-radius:4px}
+
+/* ---- production board ---- */
+.fs-board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:start}
+@container fs (max-width: 1099px){.fs-board{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container fs (max-width: 759px){.fs-board{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container fs (max-width: 599px){.fs-board{grid-template-columns:minmax(0,1fr)}}
+.fs-col{display:flex;flex-direction:column;gap:8px;min-width:0;padding:8px;border-radius:12px;border:1px solid var(--fs-line);border-top:3px solid var(--hue);background:color-mix(in srgb,var(--hue) 5%,transparent)}
+.fs-col-h{display:flex;align-items:center;gap:8px;min-width:0}
+.fs-col-h .fs-section{flex:1;min-width:0}
+.fs-col-ic{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;flex:none;background:color-mix(in srgb,var(--hue) 22%,transparent);color:var(--hue)}
+.fs-col-n{min-width:20px;height:20px;padding:0 6px;border-radius:999px;display:inline-grid;place-items:center;font-size:11px;font-weight:650;background:color-mix(in srgb,var(--hue) 20%,transparent);color:var(--fs-t1);font-variant-numeric:tabular-nums}
+.fs-col-empty{font-size:11px;color:var(--fs-t4);border:1px dashed var(--fs-line);border-radius:10px;padding:10px;text-align:center}
+.fs-task{display:flex;flex-direction:column;gap:5px;min-width:0;padding:10px;border:1px solid var(--fs-line);border-left:3px solid var(--hue,var(--fs-line));border-radius:10px;background:var(--fs-card)}
+.fs-task[data-late=true]{border-color:var(--fs-bad);border-left-color:var(--fs-bad)}
+.fs-task[data-blocked=true]{border-color:var(--fs-warn);border-left-color:var(--fs-warn)}
+.fs-task-h{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.fs-task-mats{margin:0;padding:0 0 0 14px;font-size:11px;color:var(--fs-t2);overflow-wrap:anywhere}
+.fs-blocked{display:flex;flex-direction:column;gap:8px;border:1px solid var(--fs-warn);border-radius:12px;padding:10px;background:color-mix(in srgb,var(--fs-warn) 6%,transparent)}
+.fs-blocked-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:8px}
+
+/* ---- delivery ---- */
+.fs-daynav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.fs-daynav input{width:150px}
+.fs-dl{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:6px 14px;align-items:center;padding:12px 14px;border:1px solid var(--fs-line);border-radius:12px;background:var(--fs-card);min-width:0}
+.fs-dl[data-late=true]{border-color:var(--fs-bad)}
+.fs-dl-time{display:flex;flex-direction:column;align-items:flex-start;gap:4px;font-size:16px;font-weight:650;font-variant-numeric:tabular-nums}
+.fs-dl-time i{font-style:normal;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:color-mix(in srgb,var(--hue) 22%,transparent);color:var(--hue)}
+.fs-dl-main{display:flex;flex-direction:column;gap:2px;min-width:0;overflow-wrap:anywhere}
+.fs-dl-act{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.fs-dl-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,480px),1fr));gap:10px;align-items:stretch}
+@container fs (max-width: 599px){
+  .fs-dl{grid-template-columns:minmax(0,1fr);padding:12px}
+  .fs-dl-time{flex-direction:row;align-items:center;gap:8px}
+  .fs-dl-act{justify-content:flex-start}
+  .fs-daynav{width:100%}
+  .fs-daynav input{flex:1;width:auto;min-width:0}
+}
+
+/* ---- finance bars ---- */
+.fs-legend{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:11px;color:var(--fs-t3)}
+.fs-legend span{display:inline-flex;align-items:center;gap:5px}
+.fs-legend i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.fs-days{display:flex;align-items:flex-end;gap:10px;height:150px;overflow-x:auto;padding-bottom:2px}
+.fs-day{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;flex:1 0 44px}
+.fs-day-bars{display:flex;align-items:flex-end;gap:2px;height:124px}
+.fs-day-bars i{display:block;width:10px;border-radius:3px 3px 0 0;transform-origin:bottom}
+.fs-anim .fs-day-bars i{animation:fs-bar var(--fs-dur-4) var(--fs-ease) both}
+@keyframes fs-bar{from{transform:scaleY(0)}to{transform:none}}
+.fs-cat{display:flex;flex-direction:column;gap:3px}
+.fs-cat-h{display:flex;justify-content:space-between;gap:8px;font-size:12px}
+
+/* ---- team ---- */
+.fs-dept-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px;align-items:start}
+.fs-dept-ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;background:color-mix(in srgb,var(--hue) 22%,transparent);color:var(--hue)}
+.fs-ask{all:unset;box-sizing:border-box;display:block;width:100%;text-align:left;cursor:pointer;padding:7px 10px;border-radius:8px;background:var(--ui-bg-tertiary);color:var(--fs-t2);font-size:12px;line-height:1.4;
+  transition:background var(--fs-dur-1) var(--fs-ease),transform var(--fs-dur-1) var(--fs-ease)}
+.fs-ask:hover{background:var(--fs-card-hi);transform:translateY(-1px)}
+.fs-ask:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px}
+.fs-act{display:grid;grid-template-columns:10px minmax(0,1fr) auto auto;gap:8px;align-items:baseline;padding:7px 0;border-top:1px solid var(--fs-line)}
+.fs-act:first-child{border-top:0}
+@container fs (max-width: 599px){.fs-act{grid-template-columns:10px minmax(0,1fr) auto}.fs-act>:nth-child(3){grid-column:2;justify-self:start}}
+
+/* ---- approvals ---- */
+.fs-ap-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:10px;align-items:start}
+.fs-ap{display:flex;flex-direction:column;gap:8px;min-width:0;padding:12px 14px;border:1px solid var(--fs-line);border-radius:12px;background:var(--fs-card)}
+.fs-ap[data-state=PENDING]{border-left:3px solid var(--fs-warn)}
+.fs-ap[data-state=APPROVED]{border-left:3px solid var(--fs-ok)}
+.fs-ap[data-state=REJECTED],.fs-ap[data-state=FAILED]{border-left:3px solid var(--fs-bad)}
+.fs-ap.fs-ap-compact{padding:8px 0;border:0;border-top:1px solid var(--fs-line);border-radius:0;background:none}
+.fs-ap-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;min-width:0}
+.fs-ap-sum{font-size:12.5px;font-weight:550;line-height:1.4;overflow-wrap:anywhere;min-width:0}
+.fs-ap-meta{font-size:11px;line-height:1.45;color:var(--fs-t3);overflow-wrap:anywhere}
+.fs-ap-btns{display:flex;gap:8px;flex-wrap:wrap}
+.fs-pay{display:flex;flex-direction:column;gap:2px;background:var(--ui-bg-tertiary);border-radius:8px;padding:8px 10px}
+.fs-pay>div{display:flex;justify-content:space-between;gap:10px;font-size:11px;min-width:0}
+.fs-pay>div>span:first-child{color:var(--fs-t3);flex:none}
+.fs-pay>div>span:last-child{color:var(--fs-t2);text-align:right;min-width:0;overflow-wrap:anywhere}
+
+/* ---- setup ---- */
+.fs-setup{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
+.fs-steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:6px}
+.fs-step{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:8px;width:100%;min-height:var(--fs-hit);padding:8px 10px;border-radius:10px;border:1px solid var(--fs-line);background:var(--fs-card);cursor:pointer;color:var(--fs-t1);min-width:0;
+  transition:background var(--fs-dur-1) var(--fs-ease),border-color var(--fs-dur-1) var(--fs-ease)}
+.fs-step:hover{background:var(--fs-card-hi)}
+.fs-step:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px}
+.fs-step[aria-current=step]{border-color:var(--fs-rose);background:var(--fs-rose-soft)}
+.fs-step-ic{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;flex:none;font-size:11px;font-weight:700;background:var(--ui-bg-tertiary);color:var(--fs-t2)}
+.fs-step[data-done=true] .fs-step-ic{background:color-mix(in srgb,var(--fs-ok) 20%,transparent);color:var(--fs-ok)}
+.fs-setup-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--fs-line);border-radius:10px;padding:8px 12px;min-width:0}
+.fs-btnrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+@container fs (min-width: 960px){
+  .fs-setup{grid-template-columns:250px minmax(0,1fr)}
+  .fs-steps{grid-template-columns:minmax(0,1fr)}
+}
+
+/* ---- entering rows ---- */
+.fs-anim .fs-rowcard.fs-enter,.fs-anim .fs-task.fs-enter,.fs-anim .fs-dl.fs-enter,.fs-anim .fs-ap.fs-enter{animation-name:fs-up}
+
+/* ---- touch ---- */
+@media (pointer: coarse){
+  .fs-page button,.fs-page select,.fs-page input,.fs-page textarea{min-height:var(--fs-hit)}
+  .fs-rowcard,.fs-task{min-height:var(--fs-hit)}
+}
+
+/* ---- dialogs (portal): viewport media queries ---- */
+.fs-dlg-lines{display:flex;flex-direction:column;gap:6px;min-width:0}
+.fs-dlg-line{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1.4fr) 64px 130px 28px;gap:6px;align-items:center;min-width:0}
+@media (max-width: 640px){
+  .fs-dlg-line{grid-template-columns:minmax(0,1fr) 64px 28px;grid-template-areas:"a a x" "b b b" "q p p"}
+  .fs-dlg-line>:nth-child(1){grid-area:a}
+  .fs-dlg-line>:nth-child(2){grid-area:b}
+  .fs-dlg-line>:nth-child(3){grid-area:q}
+  .fs-dlg-line>:nth-child(4){grid-area:p}
+  .fs-dlg-line>:nth-child(5){grid-area:x}
+  .fs-dlg-line{padding-bottom:8px;border-bottom:1px solid var(--ui-stroke-secondary)}
+}
+.fs-twrap{overflow-x:auto;min-width:0;max-width:100%}
+`;
+function FsPageStyles() {
+  return h("style", { "data-fs-page-styles": "1" }, PAGES_CSS);
+}
+
+// desktop/src/components/kit.js
+function PageHead({ title, sub, right }) {
+  return h(
+    "div",
+    { className: "fs-ph" },
+    h("div", { style: { minWidth: 0 } }, h("h2", { className: "fs-ph-t" }, title), h("div", { className: "fs-ph-s" }, sub || " ")),
+    right ? h("div", { className: "fs-ph-r" }, right) : null
+  );
+}
+function Page({ children }) {
+  return h("div", { className: "fs-page" }, h(FsPageStyles, {}), children);
+}
+function KV({ k, v }) {
+  return h("div", { className: "fs-kv" }, h("span", null, k), h("span", null, v));
+}
+var SELH = { height: "var(--fs-hit)" };
+function StationChip({ station, label, count }) {
+  const s = STATION[station];
+  if (!s) return label ? h("span", { className: "fs-chip" }, label) : null;
+  return h("span", { className: "fs-chip", style: { "--hue": s.hue } }, h("span", { className: "fs-dot", style: { background: s.hue }, "aria-hidden": "true" }), label || s.short, count !== void 0 ? h("b", { className: "fs-num" }, String(count)) : null);
+}
+function useScrollTop(dep) {
+  const ref = useRef2(null);
+  useEffect2(() => {
+    const el = ref.current && ref.current.closest ? ref.current.closest(".fs-scroll") : null;
+    if (el && dep !== null && dep !== void 0) el.scrollTop = 0;
+  }, [dep]);
+  return ref;
+}
+function BackBtn({ onClick, children }) {
+  return h("button", { type: "button", className: "fs-only-narrow fs-chip fs-click", onClick, style: { all: "unset", boxSizing: "border-box", display: "inline-flex", alignItems: "center", gap: 6, height: "var(--fs-hit)", padding: "0 12px", borderRadius: 999, background: "var(--fs-card-hi)", fontSize: 12, color: "var(--fs-t1)", cursor: "pointer", marginBottom: 10 } }, h(Icon, { name: "arrow-left", size: 12 }), children);
+}
+
+// desktop/src/components/order-panel.js
+var kv2 = (k, v) => h(KV, { key: k, k, v });
+var wrap = (t) => h("div", { className: "fs-table-wrap" }, t);
 function EstimateBlock({ est, cur }) {
   return h(
     "div",
     { style: col(6) },
     h("div", { style: row(8) }, h(Pill, { tone: "info" }, "Estimate"), h(Muted, null, est.basis || "based on average stock cost")),
-    kv("Selling price", money(est.revenue_minor, cur)),
-    kv("Materials (est.)", money(est.material_cost_minor, cur)),
-    kv("Gross margin (est.)", money(est.gross_margin_minor, cur) + "  (" + pct(est.gross_margin_pct) + ")"),
-    est.lines && est.lines.length ? h(
+    kv2("Selling price", money(est.revenue_minor, cur)),
+    kv2("Materials (est.)", money(est.material_cost_minor, cur)),
+    kv2("Gross margin (est.)", money(est.gross_margin_minor, cur) + "  (" + pct(est.gross_margin_pct) + ")"),
+    est.lines && est.lines.length ? wrap(h(
       "table",
       { style: tableStyle },
       h("thead", null, h("tr", null, h(Th, null, "Material"), h(Th, { align: "right" }, "Qty"), h(Th, { align: "right" }, "Cost"))),
       h("tbody", null, est.lines.map((l) => h("tr", { key: l.sku }, h(Td, null, l.name), h(Td, { align: "right" }, num(l.quantity)), h(Td, { align: "right" }, money(l.cost_minor, cur)))))
-    ) : null
+    )) : null
   );
 }
 function useOnDemand(path, key) {
@@ -1582,7 +2201,7 @@ function OrderPanel({ orderId, onClose, onOpenPayment }) {
   return h(
     "aside",
     { style: col(10, { minWidth: 0 }), "aria-label": "Order details" },
-    h("div", { style: row(8, { justifyContent: "flex-end" }) }, h(Button4, { size: "xs", variant: "ghost", onClick: onClose }, "Close panel")),
+    h("div", { style: row(8, { justifyContent: "space-between" }) }, h("span", { className: "fs-overline" }, "Order details"), h(Button4, { size: "xs", variant: "ghost", onClick: onClose }, "Close panel")),
     h(Q, { q, skeleton: h(SkeletonBlock, { rows: 6, height: 40 }) }, (o2) => {
       const transitions = (o2.allowed_transitions || []).filter((t) => t !== "CONFIRMED" && t !== "CANCELLED");
       const canConfirm = o2.status === "PENDING_CONFIRMATION" || o2.status === "DRAFT";
@@ -1593,9 +2212,9 @@ function OrderPanel({ orderId, onClose, onOpenPayment }) {
         { style: col(10) },
         h(
           Card,
-          null,
-          h("div", { style: row(8, { justifyContent: "space-between", alignItems: "flex-start" }) }, h("div", null, h("div", { style: txt(15, C.t1, { fontWeight: 600 }) }, o2.order_number), h("div", { style: txt(12, C.t2) }, o2.customer && o2.customer.name || "Customer")), h("div", { style: col(4, { alignItems: "flex-end" }) }, h(StatusPill, { status: o2.status }), o2.station ? h(Muted, null, stationLabel(o2.station)) : null)),
-          h("div", { style: col(4, { marginTop: 8 }) }, kv("Requested for", h("span", null, fmtDateTime(o2.requested_delivery_at, tz) + "  ", h(Due, { iso: o2.requested_delivery_at, late: o2.is_late, status: o2.status }))), o2.delivery_address ? kv("Deliver to", o2.delivery_address) : kv("Delivery", "Pickup"), o2.notes ? kv("Notes", o2.notes) : null, o2.is_demo ? kv("Data", "Demo order") : null),
+          { i: 0 },
+          h("div", { style: row(8, { justifyContent: "space-between", alignItems: "flex-start" }) }, h("div", { style: { minWidth: 0 } }, h("div", { style: txt(15, C.t1, { fontWeight: 600 }) }, o2.order_number), h("div", { style: txt(12, C.t2) }, o2.customer && o2.customer.name || "Customer")), h("div", { style: col(4, { alignItems: "flex-end" }) }, h(StatusPill, { status: o2.status }), o2.station ? h(StationChip, { station: o2.station, label: stationLabel(o2.station) }) : null)),
+          h("div", { style: col(4, { marginTop: 8 }) }, kv2("Requested for", h("span", null, fmtDateTime(o2.requested_delivery_at, tz) + "  ", h(Due, { iso: o2.requested_delivery_at, late: o2.is_late, status: o2.status }))), o2.delivery_address ? kv2("Deliver to", o2.delivery_address) : kv2("Delivery", "Pickup"), o2.notes ? kv2("Notes", o2.notes) : null, o2.is_demo ? kv2("Data", "Demo order") : null),
           h(
             "div",
             { style: row(6, { flexWrap: "wrap", marginTop: 10 }) },
@@ -1604,44 +2223,44 @@ function OrderPanel({ orderId, onClose, onOpenPayment }) {
             canCancel ? h(Button4, { size: "sm", variant: "ghost", onClick: () => setDlg("cancel") }, "Cancel order") : null
           )
         ),
-        o2.pending_approvals && o2.pending_approvals.length ? h(Card, { title: "Waiting for your approval" }, o2.pending_approvals.map((a) => h("div", { key: a.id, style: txt(12, C.t2) }, a.summary + " (" + a.ref + ")"))) : null,
+        o2.pending_approvals && o2.pending_approvals.length ? h(Card, { title: "Waiting for your approval", i: 1, style: { borderColor: "var(--ui-yellow)" } }, o2.pending_approvals.map((a) => h("div", { key: a.id, style: row(8, txt(12, C.t2, { alignItems: "flex-start" })) }, h(Icon, { name: "bell", size: 12, style: { color: C.warn, marginTop: 3, flex: "none" } }), h("span", { style: { minWidth: 0, overflowWrap: "anywhere" } }, a.summary + " (" + a.ref + ")")))) : null,
         h(
           Card,
-          { title: "Items" },
-          h(
+          { title: "Items", i: 1 },
+          wrap(h(
             "table",
             { style: tableStyle },
             h("thead", null, h("tr", null, h(Th, null, "Item"), h(Th, { align: "right" }, "Qty"), h(Th, { align: "right" }, "Price"), h(Th, { align: "right" }, "Line total"))),
             h("tbody", null, (o2.items || []).map((it) => h("tr", { key: it.id }, h(Td, null, it.recipe_name || it.description), h(Td, { align: "right" }, num(it.quantity)), h(Td, { align: "right" }, money(it.unit_price_minor, cur)), h(Td, { align: "right" }, money(it.line_total_minor, cur)))))
-          ),
-          h("div", { style: col(3, { marginTop: 8, borderTop: "1px solid " + C.line, paddingTop: 8 }) }, kv("Subtotal", money(o2.subtotal_minor, cur)), o2.discount_minor ? kv("Discount", "-" + money(o2.discount_minor, cur)) : null, kv("Delivery fee", money(o2.delivery_fee_minor, cur)), kv("Total", h("strong", null, money(o2.total_minor, cur))), kv("Paid", money(o2.paid_minor, cur)), kv("Outstanding", h("span", { style: { color: o2.outstanding_minor > 0 ? C.warn : C.ok } }, money(o2.outstanding_minor, cur)))),
+          )),
+          h("div", { style: col(3, { marginTop: 8, borderTop: "1px solid " + C.line, paddingTop: 8 }) }, kv2("Subtotal", money(o2.subtotal_minor, cur)), o2.discount_minor ? kv2("Discount", "-" + money(o2.discount_minor, cur)) : null, kv2("Delivery fee", money(o2.delivery_fee_minor, cur)), kv2("Total", h("strong", null, money(o2.total_minor, cur))), kv2("Paid", money(o2.paid_minor, cur)), kv2("Outstanding", h("span", { style: { color: o2.outstanding_minor > 0 ? C.warn : C.ok } }, money(o2.outstanding_minor, cur)))),
           h("div", { style: row(8, { marginTop: 8 }) }, h(Pill, { tone: paymentTone(o2.payment_status) }, paymentLabel(o2.payment_status)), o2.payment_status !== "PAID" && o2.status !== "CANCELLED" ? h(Button4, { size: "xs", variant: "outline", onClick: () => setDlg("pay") }, "Record payment") : null)
         ),
         h(
           Card,
-          { title: "Stock and cost", right: h("div", { style: row(6) }, h(Button4, { size: "xs", variant: "outline", onClick: avail.show }, "Check availability"), h(Button4, { size: "xs", variant: "outline", onClick: est.show }, "Estimate cost")) },
+          { title: "Stock and cost", i: 2, right: h("div", { style: row(6, { flexWrap: "wrap", justifyContent: "flex-end" }) }, h(Button4, { size: "xs", variant: "outline", onClick: avail.show }, "Check availability"), h(Button4, { size: "xs", variant: "outline", onClick: est.show }, "Estimate cost")) },
           !avail.on && !est.on ? h(Muted, { size: 12 }, "Check that the flowers are on the shelf before you confirm, or see what this order costs you.") : null,
           avail.on ? h("div", { style: col(6) }, h(Q, { q: avail.q, skeleton: h(SkeletonBlock, { rows: 2, height: 28 }) }, (d) => h(AvailabilityBlock, { data: d }))) : null,
           est.on ? h("div", { style: { marginTop: avail.on ? 12 : 0 } }, h(Q, { q: est.q, skeleton: h(SkeletonBlock, { rows: 2, height: 28 }) }, (d) => h(EstimateBlock, { est: d, cur: d.currency || cur }))) : null
         ),
         h(
           Card,
-          { title: "Production" },
-          o2.production_tasks && o2.production_tasks.length ? o2.production_tasks.map((t) => h("div", { key: t.id, style: row(8, { justifyContent: "space-between", padding: "3px 0" }) }, h("span", { style: txt(12, C.t1) }, "Task " + t.id + (t.assigned_to ? " - " + t.assigned_to : "")), h(Pill, { tone: t.is_late ? "bad" : t.status === "DONE" ? "ok" : "muted" }, prodLabel(t.status)))) : h(Muted, { size: 12 }, "No production tasks yet. They are created when the order is confirmed.")
+          { title: "Production", i: 3 },
+          o2.production_tasks && o2.production_tasks.length ? o2.production_tasks.map((t) => h("div", { key: t.id, style: row(8, { justifyContent: "space-between", padding: "3px 0" }) }, h("span", { style: txt(12, C.t1, { minWidth: 0, overflowWrap: "anywhere" }) }, "Task " + t.id + (t.assigned_to ? " - " + t.assigned_to : "")), h(Pill, { tone: t.is_late ? "bad" : t.status === "DONE" ? "ok" : "muted" }, prodLabel(t.status)))) : h(Muted, { size: 12 }, "No production tasks yet. They are created when the order is confirmed.")
         ),
         h(
           Card,
-          { title: "Delivery", right: !hasDelivery && ["CONFIRMED", "IN_PRODUCTION", "READY", "FAILED_DELIVERY"].indexOf(o2.status) >= 0 ? h(Button4, { size: "xs", variant: "outline", onClick: () => setDlg("schedule") }, "Schedule delivery") : null },
-          hasDelivery ? h("div", { style: col(3) }, kv("When", fmtDateTime(o2.delivery.scheduled_at, tz)), kv("Address", o2.delivery.address || "-"), kv("Recipient", (o2.delivery.recipient_name || "-") + (o2.delivery.recipient_phone ? " - " + o2.delivery.recipient_phone : "")), kv("Driver", o2.delivery.assigned_to || "not assigned"), kv("Status", humanize(o2.delivery.status))) : h(Muted, { size: 12 }, "No delivery scheduled yet.")
+          { title: "Delivery", i: 4, right: !hasDelivery && ["CONFIRMED", "IN_PRODUCTION", "READY", "FAILED_DELIVERY"].indexOf(o2.status) >= 0 ? h(Button4, { size: "xs", variant: "outline", onClick: () => setDlg("schedule") }, "Schedule delivery") : null },
+          hasDelivery ? h("div", { style: col(3) }, kv2("When", fmtDateTime(o2.delivery.scheduled_at, tz)), kv2("Address", o2.delivery.address || "-"), kv2("Recipient", (o2.delivery.recipient_name || "-") + (o2.delivery.recipient_phone ? " - " + o2.delivery.recipient_phone : "")), kv2("Driver", o2.delivery.assigned_to || "not assigned"), kv2("Status", humanize(o2.delivery.status))) : h(Muted, { size: 12 }, "No delivery scheduled yet.")
         ),
         o2.design_references && o2.design_references.length ? h(
           Card,
-          { title: "Design references" },
+          { title: "Design references", i: 5 },
           o2.design_references.map((d) => h("div", { key: d.id, style: col(1, { padding: "4px 0", borderTop: "1px solid " + C.line }) }, h("div", { style: txt(12, C.t1) }, d.prompt || humanize(d.kind)), h("div", { style: txt(11, C.t3, { wordBreak: "break-all" }) }, humanize(d.kind) + " - " + d.asset_path)))
         ) : null,
         h(
           Card,
-          { title: "History" },
+          { title: "History", i: 6 },
           h(
             "ol",
             { style: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 } },
@@ -1665,7 +2284,7 @@ var DUE = [
   { value: "upcoming", label: "Upcoming" }
 ];
 var STATUS_OPTIONS = [{ value: "", label: "All statuses" }].concat(Object.keys(ORDER_STATUS).map((k) => ({ value: k, label: ORDER_STATUS[k][0] })));
-var COLS = "84px minmax(0,1.3fr) 150px 120px 120px 90px";
+var cnt = (n) => String(n);
 function OrdersPage() {
   const nav = useValue($nav);
   const { tz } = useShop();
@@ -1674,17 +2293,17 @@ function OrdersPage() {
   const [text, setText] = useState6("");
   const [search, setSearch] = useState6("");
   const [dlg, setDlg] = useState6(false);
-  useEffect2(() => {
+  useEffect3(() => {
     const t = setTimeout(() => setSearch(text.trim()), 250);
     return () => clearTimeout(t);
   }, [text]);
-  useEffect2(() => {
+  useEffect3(() => {
     if (nav.preset) {
       setStatus(nav.preset.status || "");
       setDue(nav.preset.due || "");
     }
   }, [nav.seq]);
-  useEffect2(() => {
+  useEffect3(() => {
     if (nav.newOrder) {
       setDlg(true);
       clearNewOrder();
@@ -1692,82 +2311,109 @@ function OrdersPage() {
   }, [nav.newOrder]);
   const q = useApi(["orders", status, due, search], "/orders" + qs({ status, due, q: search, limit: 50 }));
   const selected = nav.orderId;
+  const open = selected !== null && selected !== void 0;
   const filtered = !!(status || due || search);
+  const topRef = useScrollTop(open ? selected : null);
+  const clear = () => {
+    setStatus("");
+    setDue("");
+    setText("");
+  };
+  const items = q.data && q.data.items || [];
+  const late = items.filter((o) => o.is_late).length;
+  const toPay = items.filter((o) => o.payment_status !== "PAID" && o.status !== "CANCELLED" && o.status !== "DRAFT").length;
+  const active = items.filter((o) => ["CONFIRMED", "IN_PRODUCTION", "READY", "OUT_FOR_DELIVERY"].indexOf(o.status) >= 0).length;
   return h(
-    "div",
+    Page,
     null,
-    h(PageHeader, {
+    h("div", { ref: topRef }),
+    h(PageHead, {
       title: "Orders",
       sub: q.data ? q.data.total + (filtered ? " matching" : " in total") : " ",
       right: [h(Updated, { key: "u", q, tz }), h(Button5, { key: "n", size: "sm", onClick: () => setDlg(true) }, "New order")]
     }),
+    q.data && !open ? h(
+      "div",
+      { className: "fs-kpis" },
+      h(Metric, { i: 0, icon: "list-unordered", label: "Showing", value: cnt(items.length), raw: items.length, fmt: cnt, sub: filtered ? "filtered" : "latest first" }),
+      h(Metric, { i: 1, icon: "rocket", label: "In flight", value: cnt(active), raw: active, fmt: cnt, sub: "confirmed to delivery" }),
+      h(Metric, { i: 2, icon: "flame", label: "Late", value: cnt(late), raw: late, fmt: cnt, tone: late ? "bad" : void 0, sub: late ? "needs action" : "none late", onClick: () => {
+        setDue("late");
+        setStatus("");
+      } }),
+      h(Metric, { i: 3, icon: "credit-card", label: "To collect", value: cnt(toPay), raw: toPay, fmt: cnt, tone: toPay ? "warn" : void 0, sub: "not fully paid" })
+    ) : null,
     h(
       "div",
-      { style: row(8, { flexWrap: "wrap", marginBottom: 10 }) },
-      h(Input3, { value: text, onChange: (e) => setText(e.target.value), placeholder: "Search number, customer, item", "aria-label": "Search orders", containerClassName: "", style: { width: 260 } }),
-      h(Sel, { label: "Status", value: status, onChange: setStatus, options: STATUS_OPTIONS }),
-      h(Sel, { label: "Due", value: due, onChange: setDue, options: DUE }),
-      filtered ? h(Button5, { size: "xs", variant: "ghost", onClick: () => {
-        setStatus("");
-        setDue("");
-        setText("");
-      } }, "Clear filters") : null
+      { className: "fs-bar" },
+      h("div", { className: "fs-grow" }, h(Input3, { value: text, onChange: (e) => setText(e.target.value), placeholder: "Search number, customer, item", "aria-label": "Search orders", containerClassName: "", style: { width: "100%" } })),
+      h(Sel, { label: "Status", value: status, onChange: setStatus, options: STATUS_OPTIONS, style: SELH }),
+      h(Sel, { label: "Due", value: due, onChange: setDue, options: DUE, style: SELH }),
+      filtered ? h(Button5, { size: "xs", variant: "ghost", onClick: clear }, "Clear filters") : null
     ),
     h(
       "div",
-      { style: { display: "grid", gridTemplateColumns: selected !== null && selected !== void 0 ? "minmax(0,1fr) minmax(360px,440px)" : "minmax(0,1fr)", gap: 16, alignItems: "start" } },
+      { className: "fs-md", "data-open": open ? "true" : "false" },
       h(
         "div",
-        { style: { minWidth: 0 } },
+        { className: "fs-md-main" },
         h(
           Q,
           {
             q,
             skeleton: h(SkeletonBlock, { rows: 7, height: 40 }),
             isEmpty: (d) => !d.items.length,
-            empty: filtered ? h(Empty, { title: "No orders match", hint: "Try a different status or clear the filters.", action: h(Button5, { size: "sm", variant: "outline", onClick: () => {
-              setStatus("");
-              setDue("");
-              setText("");
-            } }, "Clear filters") }) : h(Empty, { title: "No orders yet", hint: "Take your first order, or load the demo shop from Setup to see how it works.", action: h(Button5, { size: "sm", onClick: () => setDlg(true) }, "Create the first order") })
+            empty: filtered ? h(Empty, { title: "No orders match", hint: "Try a different status or clear the filters.", action: h(Button5, { size: "sm", variant: "outline", onClick: clear }, "Clear filters") }) : h(Empty, { title: "No orders yet", hint: "Take your first order, or load the demo shop from Setup to see how it works.", action: h(Button5, { size: "sm", onClick: () => setDlg(true) }, "Create the first order") })
           },
           (d) => h(
             "div",
-            { role: "table", "aria-label": "Orders" },
-            h("div", { role: "row", style: { display: "grid", gridTemplateColumns: COLS, gap: 10, padding: "4px 8px", ...txt(11, C.t3) } }, h("span", null, "Order"), h("span", null, "Customer"), h("span", null, "Status"), h("span", null, "Due"), h("span", { style: { textAlign: "right" } }, "Total"), h("span", null, "Payment")),
-            d.items.map((o) => h(OrderRow, { key: o.id, o, active: String(o.id) === String(selected), onPick: () => selectOrder(o.id) }))
+            null,
+            h(
+              "div",
+              { className: "fs-tonly", role: "table", "aria-label": "Orders" },
+              h("div", { role: "row", className: "fs-thead" }, ["Order", "Customer", "Status", "Due"].map((t) => h("span", { key: t, className: "fs-overline" }, t)), h("span", { className: "fs-overline", style: { textAlign: "right" } }, "Total"), h("span", { className: "fs-overline" }, "Payment")),
+              d.items.map((o) => h(OrderRow, { key: o.id, o, active: String(o.id) === String(selected), onPick: () => selectOrder(o.id) }))
+            ),
+            h("div", { className: "fs-conly fs-rows", "aria-label": "Orders list" }, d.items.map((o, i) => h(OrderCard, { key: o.id, o, i: Math.min(i, 12), active: String(o.id) === String(selected), onPick: () => selectOrder(o.id) })))
           )
         )
       ),
-      selected !== null && selected !== void 0 ? h("div", { style: { position: "sticky", top: 0, minWidth: 0, maxHeight: "calc(100vh - 150px)", overflowY: "auto", paddingRight: 2 } }, h(OrderPanel, { orderId: selected, onClose: () => selectOrder(null) })) : null
+      open ? h(
+        "div",
+        { className: "fs-md-side" },
+        h(BackBtn, { onClick: () => selectOrder(null) }, "Back to orders"),
+        h(OrderPanel, { orderId: selected, onClose: () => selectOrder(null) })
+      ) : null
     ),
     dlg ? h(NewOrderDialog, { onClose: () => setDlg(false) }) : null
   );
 }
+var num2 = { fontWeight: 600, fontVariantNumeric: "tabular-nums", fontSize: 12.5 };
+var clipS = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 };
 function OrderRow({ o, active, onPick }) {
   return h(
     "button",
-    {
-      type: "button",
-      role: "row",
-      onClick: onPick,
-      "aria-current": active ? "true" : void 0,
-      style: { display: "grid", gridTemplateColumns: COLS, gap: 10, alignItems: "center", width: "100%", padding: "8px", background: active ? "var(--ui-row-active-background, var(--ui-bg-tertiary))" : "none", border: 0, borderTop: "1px solid " + C.line, color: "inherit", cursor: "pointer", textAlign: "left" }
-    },
-    h("span", { style: txt(12, C.t1, { fontWeight: 600, fontVariantNumeric: "tabular-nums" }) }, o.order_number),
-    h("span", { style: col(0, { minWidth: 0 }) }, h("span", { style: txt(12, C.t1, clip) }, o.customer && o.customer.name || "-", o.is_demo ? h("span", { style: txt(10, C.t4) }, "  demo") : null), h("span", { style: txt(11, C.t3, clip) }, o.headline || "")),
+    { type: "button", role: "row", className: "fs-trow", onClick: onPick, "aria-current": active ? "true" : void 0 },
+    h("span", { style: num2 }, o.order_number),
+    h("span", { style: { display: "flex", flexDirection: "column", minWidth: 0 } }, h("span", { style: { fontSize: 12, ...clipS } }, o.customer && o.customer.name || "-", o.is_demo ? h("span", { style: { fontSize: 10, color: "var(--ui-text-quaternary)" } }, "  demo") : null), h("span", { style: { fontSize: 11, color: "var(--ui-text-tertiary)", ...clipS } }, o.headline || "")),
     h("span", null, h(StatusPill, { status: o.status })),
     h(Due, { iso: o.requested_delivery_at, late: o.is_late, status: o.status }),
-    h(Money, { o }),
-    h(Pill, { tone: paymentTone(o.payment_status) }, paymentLabel(o.payment_status))
+    h("span", { style: { fontSize: 12, textAlign: "right", fontVariantNumeric: "tabular-nums" } }, money(o.total_minor, o.currency)),
+    h("span", null, h(Pill, { tone: paymentTone(o.payment_status) }, paymentLabel(o.payment_status)))
   );
 }
-function Money({ o }) {
-  return h("span", { style: txt(12, C.t1, { textAlign: "right", fontVariantNumeric: "tabular-nums" }) }, money(o.total_minor, o.currency));
+function OrderCard({ o, active, onPick, i }) {
+  return h(
+    "button",
+    { type: "button", className: "fs-rowcard fs-enter", style: { "--i": i }, "data-late": o.is_late ? "true" : void 0, "aria-current": active ? "true" : void 0, onClick: onPick, "aria-label": "Open order " + o.order_number },
+    h("span", { className: "fs-rc-top" }, h("span", { style: num2 }, o.order_number), h(Due, { iso: o.requested_delivery_at, late: o.is_late, status: o.status })),
+    h("span", { style: { display: "flex", flexDirection: "column", minWidth: 0 } }, h("span", { style: { fontSize: 12.5, ...clipS } }, o.customer && o.customer.name || "-", o.is_demo ? h("span", { style: { fontSize: 10, color: "var(--ui-text-quaternary)" } }, "  demo") : null), h("span", { style: { fontSize: 11, color: "var(--ui-text-tertiary)", ...clipS } }, o.headline || "")),
+    h("span", { className: "fs-rc-bot" }, h(StatusPill, { status: o.status }), h(Pill, { tone: paymentTone(o.payment_status) }, paymentLabel(o.payment_status)), h("span", { className: "fs-spacer" }), h("span", { style: { fontSize: 12.5, fontVariantNumeric: "tabular-nums", fontWeight: 550 } }, money(o.total_minor, o.currency)))
+  );
 }
 
 // desktop/src/pages/inventory.js
-import { useEffect as useEffect3, useState as useState7 } from "react";
+import { useEffect as useEffect4, useState as useState7 } from "react";
 import { Button as Button6, Input as Input4, SegmentedControl } from "@hermes/plugin-sdk";
 var CATS = [{ value: "", label: "All categories" }].concat(["flower", "foliage", "wrapping", "ribbon", "card", "vase", "other"].map((c) => ({ value: c, label: humanize(c) })));
 function InventoryPage() {
@@ -1787,7 +2433,7 @@ function StockView({ tz }) {
   const [search, setSearch] = useState7("");
   const [dlg, setDlg] = useState7(null);
   const [selected, setSelected] = useState7(null);
-  useEffect3(() => {
+  useEffect4(() => {
     const t = setTimeout(() => setSearch(text.trim()), 250);
     return () => clearTimeout(t);
   }, [text]);
@@ -1985,7 +2631,7 @@ import { useState as useState9 } from "react";
 import { Button as Button8 } from "@hermes/plugin-sdk";
 
 // desktop/src/scene/floor-view.js
-import { useEffect as useEffect4, useRef as useRef2 } from "react";
+import { useEffect as useEffect5, useRef as useRef3 } from "react";
 import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 
 // desktop/src/scene/meshes.generated.js
@@ -2458,19 +3104,19 @@ function themeOf(el) {
   };
 }
 function FloorView({ floor, selectedId = null, onSelectOrder, height = 420 }) {
-  const wrapRef = useRef2(null);
-  const canvasRef = useRef2(null);
-  const rendererRef = useRef2(null);
-  const onSelectRef = useRef2(onSelectOrder);
+  const wrapRef = useRef3(null);
+  const canvasRef = useRef3(null);
+  const rendererRef = useRef3(null);
+  const onSelectRef = useRef3(onSelectOrder);
   onSelectRef.current = onSelectOrder;
-  useEffect4(() => {
+  useEffect5(() => {
     const canvas = canvasRef.current;
-    const wrap = wrapRef.current;
-    if (!canvas || !wrap) return void 0;
+    const wrap2 = wrapRef.current;
+    if (!canvas || !wrap2) return void 0;
     const reduceMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const r = createRenderer(canvas, { reduceMotion });
     rendererRef.current = r;
-    r.setTheme(themeOf(wrap));
+    r.setTheme(themeOf(wrap2));
     let visible = true;
     let raf = 0;
     let last = 0;
@@ -2482,16 +3128,16 @@ function FloorView({ floor, selectedId = null, onSelectOrder, height = 420 }) {
       r.frame(now);
     };
     const fit = () => {
-      const rect = wrap.getBoundingClientRect();
+      const rect = wrap2.getBoundingClientRect();
       r.resize(rect.width, rect.height, Math.min(2, window.devicePixelRatio || 1));
       r.frame(performance.now());
     };
     const ro = typeof ResizeObserver === "function" ? new ResizeObserver(fit) : null;
-    if (ro) ro.observe(wrap);
+    if (ro) ro.observe(wrap2);
     const io = typeof IntersectionObserver === "function" ? new IntersectionObserver((entries) => {
       visible = entries.some((e) => e.isIntersecting);
     }) : null;
-    if (io) io.observe(wrap);
+    if (io) io.observe(wrap2);
     fit();
     raf = requestAnimationFrame(loop);
     let drag = null;
@@ -2570,10 +3216,10 @@ function FloorView({ floor, selectedId = null, onSelectOrder, height = 420 }) {
       rendererRef.current = null;
     };
   }, []);
-  useEffect4(() => {
+  useEffect5(() => {
     if (rendererRef.current) rendererRef.current.setFloor(floor, performance.now());
   }, [floor]);
-  useEffect4(() => {
+  useEffect5(() => {
     if (rendererRef.current) rendererRef.current.setSelected(selectedId);
   }, [selectedId, floor]);
   const orders = floor && floor.orders || [];
@@ -2598,7 +3244,7 @@ function FloorView({ floor, selectedId = null, onSelectOrder, height = 420 }) {
 }
 
 // desktop/src/pages/floor.js
-var STATION_ORDER = ["incoming", "prep", "assembly", "quality", "packing", "delivery"];
+var STATION_ORDER2 = ["incoming", "prep", "assembly", "quality", "packing", "delivery"];
 var NEXT = { QUEUED: "PREP", PREP: "ASSEMBLY", ASSEMBLY: "QUALITY_CHECK", QUALITY_CHECK: "DONE" };
 function FloorPage() {
   const { tz, currency } = useShop();
@@ -2643,7 +3289,7 @@ function FloorPage() {
         h(
           Card,
           { title: "Orders by station", right: h(Muted, null, "Same information as the floor view, as a list") },
-          orders.length ? h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 14 } }, STATION_ORDER.map((sid) => {
+          orders.length ? h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 14 } }, STATION_ORDER2.map((sid) => {
             const list = orders.filter((o) => o.station === sid);
             return h("section", { key: sid, "aria-label": stationLabel(sid), style: col(4) }, h("h4", { style: { margin: 0, fontSize: 12, fontWeight: 600, color: C.t2 } }, stationLabel(sid) + " (" + list.length + ")"), list.length ? list.map((o) => h("button", { key: o.id, type: "button", onClick: () => setSel(o.id), "aria-pressed": sel === o.id, style: { display: "block", width: "100%", textAlign: "left", padding: "5px 8px", borderRadius: 6, border: "1px solid " + (sel === o.id ? C.accent : C.line), background: "none", color: "inherit", cursor: "pointer" } }, h("span", { style: row(6) }, h(Dot, { tone: o.is_late ? "bad" : o.is_due_today ? "warn" : "muted" }), h("span", { style: txt(12, C.t1, { fontWeight: 600 }) }, o.order_number), h("span", { style: txt(11, C.t3, clip) }, o.customer_name)))) : h("div", { style: txt(11, C.t4) }, "No orders here"));
           })) : h(Empty, { title: "The floor is empty", hint: "Orders appear here as soon as they are created. Load the demo shop in Setup to see it in action." })
@@ -2905,7 +3551,7 @@ function ApprovalsPage() {
 }
 
 // desktop/src/pages/setup.js
-import { useEffect as useEffect5, useState as useState13 } from "react";
+import { useEffect as useEffect6, useState as useState13 } from "react";
 import { Button as Button12, Input as Input6, Switch } from "@hermes/plugin-sdk";
 var TZS = ["Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura", "Asia/Singapore", "Asia/Kuala_Lumpur", "Asia/Bangkok", "Asia/Manila", "Asia/Tokyo", "Australia/Sydney", "Europe/London", "Europe/Amsterdam", "America/New_York", "America/Los_Angeles", "UTC"];
 var CURRENCIES = ["IDR", "USD", "SGD", "EUR"].map((c) => ({ value: c, label: c }));
@@ -2929,7 +3575,7 @@ function ProfileStep({ onDone }) {
   const p = pq.data || {};
   const [f, setF] = useState13(null);
   const [err, setErr] = useState13(null);
-  useEffect5(() => {
+  useEffect6(() => {
     if (pq.data && !f) setF({ business_name: p.business_name || "", business_type: p.business_type || "florist", currency: p.currency || "IDR", timezone: p.timezone || "Asia/Jakarta", location: p.location || "", business_hours: p.business_hours || "08:00-20:00" });
   }, [pq.data]);
   if (!f) return h(SkeletonBlock, { rows: 4, height: 34 });
@@ -2971,7 +3617,7 @@ function DepartmentsStep({ onDone }) {
   const complete = useComplete();
   const [on, setOn] = useState13(null);
   const [err, setErr] = useState13(null);
-  useEffect5(() => {
+  useEffect6(() => {
     if (pq.data && !on) setOn(pq.data.enabled_departments || DEPTS.map((d) => d[0]));
   }, [pq.data]);
   if (!on) return h(SkeletonBlock, { rows: 5, height: 40 });
@@ -3131,8 +3777,8 @@ var PAGES = {
   setup: SetupPage
 };
 function Tabs({ value, pending }) {
-  const ref = useRef3(null);
-  useEffect6(() => {
+  const ref = useRef4(null);
+  useEffect7(() => {
     const el = ref.current && ref.current.querySelector("[aria-selected=true]");
     if (el && el.scrollIntoView) el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: reducedMotion() ? "auto" : "smooth" });
   }, [value]);
@@ -3168,9 +3814,9 @@ function FlowerShopPage() {
   const nav = useValue2($nav);
   const pending = useApprovals("PENDING");
   const n = pending.data && pending.data.items ? pending.data.items.length : 0;
-  const Page = PAGES[nav.tab] || OverviewPage;
+  const Page2 = PAGES[nav.tab] || OverviewPage;
   const [anim, setAnim] = useState14(true);
-  useEffect6(() => {
+  useEffect7(() => {
     setAnim(true);
     const t = setTimeout(() => setAnim(false), 1600);
     return () => clearTimeout(t);
@@ -3188,7 +3834,7 @@ function FlowerShopPage() {
     h(
       "main",
       { className: "fs-scroll" + (anim ? " fs-anim" : "") },
-      h(Page, { key: nav.tab }),
+      h(Page2, { key: nav.tab }),
       h("div", { style: { marginTop: 28, textAlign: "center" } }, h(Muted, { size: 11 }, "Flower Shop v" + VERSION))
     )
   );
@@ -3221,7 +3867,7 @@ var note = (text) => h("div", { style: { ...cardStyle, ...txt(12, C.t3) } }, tex
 function validId(v) {
   return typeof v === "string" && ID_RE.test(v.trim());
 }
-function OrderCard({ id, streaming }) {
+function OrderCard2({ id, streaming }) {
   const { currency, tz } = useShop();
   const ok = validId(id);
   const q = useApi(["card", "order", ok ? id.trim() : ""], "/orders/" + encodeURIComponent(ok ? id.trim() : "x"), { enabled: ok && !streaming, interval: 15e3 });
@@ -3299,7 +3945,7 @@ var index_default = {
       { id: "cmd-new-order", area: PALETTE_AREA, data: { id: "flower-shop.new-order", label: "Flower Shop: New order", keywords: ["flower", "order", "new", "create"], run: () => openNewOrder() } },
       { id: "cmd-floor", area: PALETTE_AREA, data: { id: "flower-shop.floor", label: "Flower Shop: Shop Floor", keywords: ["flower", "floor", "3d", "production"], run: () => goTo("floor") } },
       { id: "chip", area: STATUSBAR_RIGHT, order: 60, render: () => jsx3(ApprovalChip, {}) },
-      { id: "dir-order", area: DIRECTIVE_AREA, data: { name: "flowershop-order", render: (p) => jsx3(OrderCard, { id: p.attrs && p.attrs.id, streaming: !!p.streaming }) } },
+      { id: "dir-order", area: DIRECTIVE_AREA, data: { name: "flowershop-order", render: (p) => jsx3(OrderCard2, { id: p.attrs && p.attrs.id, streaming: !!p.streaming }) } },
       { id: "dir-approval", area: DIRECTIVE_AREA, data: { name: "flowershop-approval", render: (p) => jsx3(ApprovalCard, { id: p.attrs && p.attrs.id, streaming: !!p.streaming }) } },
       { id: "dir-briefing", area: DIRECTIVE_AREA, data: { name: "flowershop-briefing", render: (p) => jsx3(BriefingCard, { streaming: !!p.streaming }) } }
     ]);
