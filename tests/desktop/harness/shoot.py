@@ -103,11 +103,14 @@ def snap(page, name):
     print("shot", path.name, note)
 
 
+# WebGL in headless chromium: software GL via SwiftShader (the 3D floor needs it)
+GL_ARGS = ["--no-sandbox", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
+
 TABS = ["overview", "orders", "inventory", "production", "floor", "delivery", "finance", "team", "approvals", "setup"]
 
 with sync_playwright() as pw:
     try:
-        browser = pw.chromium.launch(args=["--no-sandbox"])
+        browser = pw.chromium.launch(args=GL_ARGS)
     except Exception:
         # The playwright python package can be newer than the installed browser build: fall back
         # to the newest chromium found in the playwright cache.
@@ -117,7 +120,7 @@ with sync_playwright() as pw:
         if not cands:
             raise
         print("falling back to", cands[-1])
-        browser = pw.chromium.launch(executable_path=cands[-1], args=["--no-sandbox"])
+        browser = pw.chromium.launch(executable_path=cands[-1], args=GL_ARGS)
     for tab in TABS:
         if ARGS.tabs and tab not in ARGS.tabs.split(","):
             continue
