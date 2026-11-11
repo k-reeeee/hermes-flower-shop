@@ -40,7 +40,8 @@ def _get_raw(t: Tx) -> dict:
     if row is None:
         return {"business_name": "", "business_type": "florist", "currency": "IDR", "timezone": "Asia/Jakarta",
                 "location": "", "business_hours": "08:00-20:00",
-                "enabled_departments": json.dumps(OPERATING_DEPARTMENTS), "onboarding_json": "{}"}
+                "enabled_departments": json.dumps(OPERATING_DEPARTMENTS), "onboarding_json": "{}",
+                "needs": "[]", "fit": "{}", "bots": "[]", "custom_plugin": "{}"}
     return dict(row)
 
 
@@ -58,6 +59,10 @@ def _shape(t: Tx, p: dict) -> dict:
         "currency": p["currency"], "timezone": p["timezone"], "location": p["location"],
         "business_hours": p["business_hours"],
         "enabled_departments": loads(p["enabled_departments"], OPERATING_DEPARTMENTS),
+        "needs": loads(p.get("needs"), []),
+        "fit": loads(p.get("fit"), {}),
+        "bots": loads(p.get("bots"), []),
+        "custom_plugin": loads(p.get("custom_plugin"), {}),
         "onboarding_complete": _complete(ob), "is_demo_data_loaded": demo,
     }
 
