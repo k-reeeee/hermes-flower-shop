@@ -34,6 +34,7 @@ from flowershop_core.services import (  # noqa: E402
     finance,
     insights,
     inventory,
+    onboarding,
     orders,
     production,
     profile,
@@ -106,7 +107,32 @@ def put_profile(body: dict = Body(default_factory=dict)):
 
 @router.get("/onboarding")
 def get_onboarding():
-    return _run(lambda: profile.onboarding(get_store()))
+    return _run(lambda: onboarding.state(get_store()))
+
+
+@router.post("/onboarding/beat")
+def answer_onboarding_beat(body: dict = Body(default_factory=dict)):
+    return _run(lambda: onboarding.answer(get_store(), (body or {}).get("beat"),
+                                          (body or {}).get("answer"), ACTOR))
+
+
+@router.get("/onboarding/fit")
+def get_onboarding_fit():
+    s = get_store()
+    return _run(lambda: _fit_assessment(s))
+
+
+def _fit_assessment(s):
+    st = onboarding.state(s)
+    p = st["profile"]
+    fit = onboarding.assess_fit(p["business_type"], st["needs"])
+    custom = onboarding.assess_custom(p["business_type"], st["needs"], fit)
+    return {"business_type": p["business_type"], "needs": st["needs"], "fit": fit, "custom_plugin": custom}
+
+
+@router.post("/onboarding/complete")
+def complete_onboarding():
+    return _run(lambda: onboarding.complete(get_store(), ACTOR))
 
 
 @router.post("/onboarding/{step}/complete")
