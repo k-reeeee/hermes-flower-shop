@@ -2,7 +2,9 @@
 """Screenshot every Flower Shop tab through the mock-SDK harness (Playwright, chromium --no-sandbox).
 
 Run from anywhere:  python3 tests/desktop/harness/shoot.py
-Outputs tests/desktop/out/*.png at 1440x900, dpr 1. Time is pinned to 2026-11-11 12:30 WIB so
+Outputs tests/desktop/out/*.png at 1440x900, dpr 1. Extra form factors:
+    python3 tests/desktop/harness/shoot.py --viewport 390x844 --dpr 2 --prefix m- --only tabs
+    python3 tests/desktop/harness/shoot.py --viewport 820x1180 --prefix t- --only tabs --tabs overview,floor Time is pinned to 2026-11-11 12:30 WIB so
 due labels are stable. Exit code 1 if a page logs a console error / uncaught exception.
 """
 import http.server
@@ -35,13 +37,24 @@ PORT = httpd.server_address[1]
 threading.Thread(target=httpd.serve_forever, daemon=True).start()
 BASE = f"http://127.0.0.1:{PORT}/tests/desktop/harness/index.html"
 
+import argparse
+ap = argparse.ArgumentParser()
+ap.add_argument("--viewport", default="1440x900")
+ap.add_argument("--dpr", type=float, default=1)
+ap.add_argument("--prefix", default="")
+ap.add_argument("--only", default="all", choices=["all", "tabs"])
+ap.add_argument("--tabs", default="")
+ap.add_argument("--full", action="store_true", help="full-page screenshots (scrolls the plugin pane)")
+ARGS = ap.parse_args()
+VW, VH = (int(x) for x in ARGS.viewport.split("x"))
+
 errors = []
 shots = []
 layout_issues = []
 
 
 def open_page(pw_browser, query):
-    ctx = pw_browser.new_context(viewport={"width": 1440, "height": 900}, device_scale_factor=1)
+    ctx = pw_browser.new_context(viewport={"width": VW, "height": VH}, device_scale_factor=ARGS.dpr, has_touch=VW < 700, is_mobile=False)
     page = ctx.new_page()
     page.on("pageerror", lambda e: errors.append(f"[{query}] pageerror: {e}"))
     page.on("console", lambda m: errors.append(f"[{query}] console.{m.type}: {m.text}") if m.type == "error" else None)
@@ -68,7 +81,12 @@ LINT_JS = """() => {
 
 
 def snap(page, name):
-    path = OUT / f"{name}.png"
+    path = OUT / f"{ARGS.prefix}{name}.png"
+    if ARGS.full:
+        # grow the window to the scroll height of the plugin pane so one image holds the page
+        hgt = page.evaluate("() => { const m = document.querySelector('.fs-scroll'); return m ? m.scrollHeight + 120 : 900 }")
+        page.set_viewport_size({"width": VW, "height": max(VH, min(int(hgt), 6000))})
+        page.wait_for_timeout(400)
     page.screenshot(path=str(path))
     shots.append(str(path))
     res = page.evaluate(LINT_JS)
@@ -101,9 +119,16 @@ with sync_playwright() as pw:
         print("falling back to", cands[-1])
         browser = pw.chromium.launch(executable_path=cands[-1], args=["--no-sandbox"])
     for tab in TABS:
+        if ARGS.tabs and tab not in ARGS.tabs.split(","):
+            continue
         ctx, page = open_page(browser, f"tab={tab}")
         snap(page, f"{TABS.index(tab) + 1:02d}-{tab}")
         ctx.close()
+    if ARGS.only == "tabs":
+        browser.close()
+        httpd.shutdown()
+        print(json.dumps({"screenshots": len(shots), "errors": errors, "layout_issues": layout_issues}, indent=1))
+        sys.exit(1 if errors else 0)
 
     # Orders: open a detail panel and run the availability + estimate checks
     ctx, page = open_page(browser, "tab=orders")

@@ -2,16 +2,16 @@
 import { atom, host } from '@hermes/plugin-sdk'
 
 export const TABS = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'orders', label: 'Orders' },
-  { id: 'inventory', label: 'Inventory' },
-  { id: 'production', label: 'Production' },
-  { id: 'floor', label: 'Shop Floor' },
-  { id: 'delivery', label: 'Delivery' },
-  { id: 'finance', label: 'Finance' },
-  { id: 'team', label: 'AI Team' },
-  { id: 'approvals', label: 'Approvals' },
-  { id: 'setup', label: 'Setup' }
+  { id: 'overview', label: 'Today', icon: 'home' },
+  { id: 'approvals', label: 'Approvals', icon: 'inbox' },
+  { id: 'orders', label: 'Orders', icon: 'checklist' },
+  { id: 'floor', label: 'Shop Floor', icon: 'globe' },
+  { id: 'production', label: 'Production', icon: 'tools' },
+  { id: 'delivery', label: 'Delivery', icon: 'rocket' },
+  { id: 'inventory', label: 'Stock', icon: 'package' },
+  { id: 'finance', label: 'Money', icon: 'graph-line' },
+  { id: 'team', label: 'AI Team', icon: 'organization' },
+  { id: 'setup', label: 'Setup', icon: 'settings-gear' }
 ]
 export const TAB_IDS = TABS.map(t => t.id)
 

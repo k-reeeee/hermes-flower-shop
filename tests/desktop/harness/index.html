@@ -39,6 +39,8 @@
   #transcript { max-width: 640px; margin: 24px auto; display: grid; gap: 8px; }
   #transcript p { margin: 0; color: var(--ui-text-secondary); }
   .codicon { display: inline-block; width: 1em; }
+  /* phone-sized windows: Hermes hides the session rail, so the harness does too */
+  @media (max-width: 700px) { #app { grid-template-columns: 1fr; } #side { display: none; } #status { grid-column: 1; } }
 </style>
 </head>
 <body>

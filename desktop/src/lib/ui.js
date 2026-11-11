@@ -1,7 +1,6 @@
 // Shared building blocks. No JSX: h() is a thin wrapper over jsx()/jsxs().
 // Layout uses inline styles + theme variables only (host Tailwind does not scan plugin classes).
-import { jsx, jsxs } from 'react/jsx-runtime'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Badge,
   Button,
@@ -21,12 +20,9 @@ import {
 } from '@hermes/plugin-sdk'
 import { fmtTime, humanize } from './format.js'
 
-export function h(type, props, ...kids) {
-  const p = props || {}
-  if (kids.length === 0) return jsx(type, p)
-  if (kids.length === 1) return jsx(type, { ...p, children: kids[0] })
-  return jsxs(type, { ...p, children: kids })
-}
+import { h } from './h.js'
+import { reducedMotion } from './tokens.js'
+export { h }
 
 // ---- tokens ---------------------------------------------------------------------
 export const C = {
@@ -40,7 +36,7 @@ export const C = {
   warn: 'var(--ui-yellow)',
   bad: 'var(--ui-red)',
   fill: 'var(--ui-bg-tertiary)',
-  rose: 'var(--ui-flower-rose, #d9899f)' // the single brand accent
+  rose: '#E07A93' // the single brand accent (design kit 2.2)
 }
 export const toneColor = tone => (tone === 'ok' ? C.ok : tone === 'warn' ? C.warn : tone === 'bad' ? C.bad : tone === 'info' ? C.t2 : C.t3)
 const BADGE = { ok: 'success', warn: 'warn', bad: 'destructive', info: 'outline', muted: 'muted' }
@@ -67,49 +63,60 @@ export function Muted({ children, size = 11, style }) {
   return h('span', { style: txt(size, C.t3, style) }, children)
 }
 
-export function Card({ title, right, children, style, bodyStyle, id }) {
+export function Card({ title, right, children, style, bodyStyle, id, className, onClick, i }) {
   return h(
     'section',
     {
       id,
-      style: {
-        border: '1px solid ' + C.line,
-        borderRadius: 8,
-        background: 'color-mix(in srgb, var(--ui-bg-tertiary) 35%, transparent)',
-        minWidth: 0,
-        ...style
-      }
+      className: 'fs-card' + (className ? ' ' + className : '') + (i !== undefined ? ' fs-enter' : ''),
+      style: i !== undefined ? { '--i': i, ...style } : style
     },
     title || right
-      ? h(
-          'header',
-          { style: row(8, { justifyContent: 'space-between', padding: '9px 12px 0 12px' }) },
-          h('h3', { style: { margin: 0, fontSize: 12, fontWeight: 600, color: C.t2 } }, title),
-          right || null
-        )
+      ? h('header', { className: 'fs-card-h' }, h('h3', { className: 'fs-section' }, title), right || null)
       : null,
-    h('div', { style: { padding: 12, ...bodyStyle } }, children)
+    h('div', { className: 'fs-card-b', style: bodyStyle }, children)
   )
 }
 
-export function Metric({ label, value, sub, tone, onClick }) {
+// Animated number: counts from the previous value to the new one (design kit 6).
+export function useCountUp(target, ms = 900) {
+  const [v, setV] = useState(target)
+  const from = useRef(target)
+  useEffect(() => {
+    if (typeof target !== 'number' || !isFinite(target)) { setV(target); return undefined }
+    const start = typeof from.current === 'number' ? from.current : 0
+    if (reducedMotion() || start === target) { from.current = target; setV(target); return undefined }
+    let raf = 0
+    const t0 = performance.now()
+    const step = now => {
+      const k = Math.min(1, (now - t0) / ms)
+      const e = 1 - Math.pow(1 - k, 3)
+      setV(start + (target - start) * e)
+      if (k < 1) raf = requestAnimationFrame(step)
+      else from.current = target
+    }
+    raf = requestAnimationFrame(step)
+    return () => { cancelAnimationFrame(raf); from.current = target }
+  }, [target, ms])
+  return v
+}
+
+// Number that counts up; fmt turns the (fractional) value into text.
+export function CountUp({ value, fmt, ms }) {
+  const v = useCountUp(value, ms)
+  return h('span', { className: 'fs-num' }, fmt ? fmt(typeof v === 'number' ? Math.round(v) : v) : String(Math.round(v)))
+}
+
+export function Metric({ label, value, sub, tone, onClick, icon, i, raw, fmt }) {
+  const color = tone && tone !== 'muted' ? toneColor(tone) : C.t1
   const inner = [
-    h('div', { key: 'l', style: txt(11, C.t3) }, label),
-    h('div', { key: 'v', style: txt(20, tone && tone !== 'muted' ? toneColor(tone) : C.t1, { fontWeight: 600, fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }) }, value),
-    sub ? h('div', { key: 's', style: txt(11, C.t3) }, sub) : null
+    h('span', { key: 'l', className: 'fs-overline', style: row(6) }, icon ? h(Icon, { name: icon, size: 12 }) : null, label),
+    h('span', { key: 'v', className: 'fs-kpi-v', style: { color } }, typeof raw === 'number' ? h(CountUp, { value: raw, fmt }) : value),
+    sub ? h('span', { key: 's', className: 'fs-kpi-sub' }, sub) : null
   ]
-  const style = {
-    border: '1px solid ' + C.line,
-    borderRadius: 8,
-    padding: '10px 12px',
-    textAlign: 'left',
-    background: 'transparent',
-    color: 'inherit',
-    cursor: onClick ? 'pointer' : 'default',
-    display: 'block',
-    width: '100%'
-  }
-  return onClick ? h('button', { type: 'button', onClick, style }, inner) : h('div', { style }, inner)
+  const cls = 'fs-kpi' + (onClick ? ' fs-click' : '') + (i !== undefined ? ' fs-enter' : '')
+  const style = i !== undefined ? { '--i': i } : undefined
+  return onClick ? h('button', { type: 'button', onClick, className: cls, style }, inner) : h('div', { className: cls, style }, inner)
 }
 
 export function Field({ label, hint, children, style }) {
@@ -308,4 +315,13 @@ export function PayloadPreview({ payload, money }) {
       return h('div', { key: k, style: row(8, { justifyContent: 'space-between' }) }, h('span', { style: txt(11, C.t3) }, humanize(k.replace(/_minor$/, ''))), h('span', { style: txt(11, C.t2, { ...clip, textAlign: 'right' }) }, shown))
     })
   )
+}
+
+// The brand glyph: a five-petal bloom (design kit 5). Pure SVG, follows no theme var on purpose.
+export function BloomMark({ size = 18, color = '#E07A93' }) {
+  const petals = []
+  for (let i = 0; i < 5; i++) {
+    petals.push(h('ellipse', { key: i, cx: 12, cy: 6.6, rx: 3.6, ry: 5.2, fill: color, opacity: 0.92, transform: 'rotate(' + i * 72 + ' 12 12)' }))
+  }
+  return h('svg', { width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': 'true', style: { flex: 'none' } }, petals, h('circle', { cx: 12, cy: 12, r: 3, fill: '#F3C444' }))
 }
