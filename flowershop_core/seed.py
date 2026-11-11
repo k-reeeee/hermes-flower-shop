@@ -167,8 +167,18 @@ def seed_demo(s: Store, reset: bool = False, locale: str = DEFAULT_LOCALE) -> di
     before = _max_ids(s)
     a = "demo-seed"
     prof = profile.get(s)
+    prof_update = dict(d["profile"])
     if not prof["business_name"]:
-        profile.update(s, dict(d["profile"]), a)
+        profile.update(s, prof_update, a)
+    else:
+        # The business profile is the owner's own data and is never overwritten. But a profile
+        # that is still *exactly* another locale's demo profile was never really theirs — it
+        # arrived with the demo. Move it along, so the shop name, currency and timezone match
+        # the rows being loaded instead of contradicting them. One edited field and it is
+        # treated as the owner's and left alone.
+        others = [ds["profile"] for k, ds in DATASETS.items() if k != locale]
+        if any(all(prof.get(k) == v for k, v in o.items()) for o in others):
+            profile.update(s, prof_update, a)
     for sku, name, cat, var, color, unit, qty, cost, reorder, fresh, sup in d["items"]:
         if s.read().one("SELECT 1 FROM inventory_items WHERE sku = ?", (sku,)):
             continue
