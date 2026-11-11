@@ -9,16 +9,19 @@
 //
 // Read-only mirror of GET /floor: nothing here mutates business state.
 import {
-  ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight, DoubleSide, Group, HemisphereLight, InstancedMesh,
-  MathUtils, Matrix4, MeshStandardMaterial, Object3D, PCFSoftShadowMap, PerspectiveCamera, PlaneGeometry, Quaternion,
+  ACESFilmicToneMapping, AmbientLight, BufferAttribute, Color, DirectionalLight, DoubleSide, Group, HemisphereLight, InstancedMesh,
+  MathUtils, Matrix4, Mesh, OctahedronGeometry, RingGeometry, MeshBasicMaterial, MeshStandardMaterial, Object3D, PCFSoftShadowMap, PerspectiveCamera, PlaneGeometry, Quaternion,
   Raycaster, SRGBColorSpace, Scene, Vector2, Vector3, WebGLRenderer
 } from 'three'
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { STATION_POS, buildDiorama, makeBouquet, makeButterfly, makeCloud, makeMascot } from './assets.js'
 import { BOUQUET } from '../lib/tokens.js'
 
 const DEG = Math.PI / 180
 const LATE = 0xe5484d
 const FAN = [0, -40, 40, -80, 80, -120, 120]
+const RING_GEO = new RingGeometry(0.36, 0.5, 28)
+const BEACON_GEO = new OctahedronGeometry(0.1, 0)
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x)
 const easeInOut = t => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2)
 const easeOutBack = t => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2) }
@@ -32,6 +35,60 @@ export function tokenSlot(sid, i) {
   const a = toward + (ring === 0 ? FAN[k] : -135 + k * 30) * DEG
   const r = ring === 0 ? 0.62 : 1.15
   return new Vector3(p[0] + Math.cos(a) * r, 0.1, p[1] + Math.sin(a) * r)
+}
+
+/** Merge every static mesh under `root` (except subtrees in `keep`) into one mesh per
+ *  material + shadow flags: ~580 draw calls -> a few dozen. Geometry is baked to world space. */
+export function bakeStatic(root, keep) {
+  root.updateMatrixWorld(true)
+  const skip = new Set()
+  for (const k of keep) if (k) k.traverse(o => skip.add(o))
+  const buckets = new Map()
+  const victims = []
+  root.traverse(o => {
+    if (!o.isMesh || skip.has(o) || o.isInstancedMesh || Array.isArray(o.material)) return
+    const m = o.material
+    if (m.transparent || m.map || !m.isMeshStandardMaterial) return
+    // material colour -> vertex colour, so every flat pastel shares ONE material
+    const key = [m.flatShading ? 1 : 0, m.roughness, m.metalness, m.side, m.emissive.getHexString(), o.castShadow ? 'c' : '', o.receiveShadow ? 'r' : ''].join('|')
+    const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()
+    g.applyMatrix4(o.matrixWorld)
+    for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal') g.deleteAttribute(name)
+    if (!g.attributes.normal) g.computeVertexNormals()
+    g.morphAttributes = {}
+    const n = g.attributes.position.count
+    const col = new Float32Array(n * 3)
+    for (let i = 0; i < n; i++) { col[i * 3] = m.color.r; col[i * 3 + 1] = m.color.g; col[i * 3 + 2] = m.color.b }
+    g.setAttribute('color', new BufferAttribute(col, 3))
+    if (!buckets.has(key)) buckets.set(key, { proto: m, cast: o.castShadow, recv: o.receiveShadow, geos: [] })
+    buckets.get(key).geos.push(g)
+    victims.push(o)
+  })
+  for (const o of victims) o.parent.remove(o)
+  const baked = new Group()
+  baked.name = 'baked'
+  for (const b of buckets.values()) {
+    const merged = mergeGeometries(b.geos, false)
+    for (const g of b.geos) g.dispose()
+    if (!merged) continue
+    const mat = sharedMat(b.proto)
+    const mesh = new Mesh(merged, mat)
+    mesh.castShadow = b.cast
+    mesh.receiveShadow = b.recv
+    baked.add(mesh)
+  }
+  // vertices are in world space at bake time; cancel the root transform as it was then
+  root.add(baked)
+  baked.matrixAutoUpdate = false
+  baked.matrix.copy(root.matrixWorld).invert()
+  baked.matrixWorldNeedsUpdate = true
+  return { meshes: victims.length, calls: baked.children.length }
+}
+const SHARED = new Map()
+function sharedMat(m) {
+  const key = [m.flatShading ? 1 : 0, m.roughness, m.metalness, m.side, m.emissive.getHexString()].join('|')
+  if (!SHARED.has(key)) SHARED.set(key, new MeshStandardMaterial({ vertexColors: true, flatShading: m.flatShading, roughness: m.roughness, metalness: m.metalness, side: m.side, emissive: m.emissive.clone() }))
+  return SHARED.get(key)
 }
 
 function findChildWith(root, childName) {
@@ -66,6 +123,9 @@ export function createRenderer3D(canvas, opts = {}) {
   sun.shadow.camera.near = 1; sun.shadow.camera.far = 30
   sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.03; sun.shadow.radius = 3
   scene.add(sun)
+  const front = new DirectionalLight(0xfff6ee, 0.6)
+  front.position.set(1.5, 4, 12)
+  scene.add(front)
   const rim = new DirectionalLight(0xc9d8ff, 0.55)
   rim.position.set(7, 5, -8)
   scene.add(rim)
@@ -84,6 +144,7 @@ export function createRenderer3D(canvas, opts = {}) {
 
   const mascot = makeMascot()
   mascot.position.set(0.3, 0, 1.2)
+  mascot.scale.setScalar(1.3)
   mascot.traverse(o => { if (o.isMesh) o.castShadow = !lowPower })
   world.add(mascot)
   const mParts = {
@@ -91,6 +152,7 @@ export function createRenderer3D(canvas, opts = {}) {
     footL: mascot.getObjectByName('footL'), footR: mascot.getObjectByName('footR'),
     armL: mascot.getObjectByName('armL'), armR: mascot.getObjectByName('armR'), flower: mascot.getObjectByName('flower')
   }
+  bakeStatic(mascot, Object.values(mParts))
   for (const k of ['footL', 'footR']) if (mParts[k]) mParts[k].userData.y0 = mParts[k].position.y
   const mState = { target: null, speed: 1.15, wave: 0, nextBlink: 1.5, blink: 0 }
 
@@ -99,12 +161,15 @@ export function createRenderer3D(canvas, opts = {}) {
     const b = makeButterfly(c)
     b.scale.setScalar(0.9)
     world.add(b)
+    bakeStatic(b, [b.getObjectByName('wingL'), b.getObjectByName('wingR')])
     flies.push({ obj: b, wl: b.getObjectByName('wingL'), wr: b.getObjectByName('wingR'), phase: i * 2.4, r: 3.2 + i * 1.3, h: 1.3 + i * 0.4, speed: 0.22 - i * 0.05 })
   })
 
   const clouds = []
   for (let i = 0; i < 4; i++) {
     const c = makeCloud()
+    c.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.transparent = false; o.material.opacity = 1; o.castShadow = false } })
+    bakeStatic(c, [])
     const a = (i / 4) * Math.PI * 2 + 0.4
     c.position.set(Math.cos(a) * 8.5, -2.2 - (i % 2) * 1.1, Math.sin(a) * 8.5)
     c.scale.setScalar(1 + (i % 3) * 0.35)
@@ -121,18 +186,20 @@ export function createRenderer3D(canvas, opts = {}) {
     if (wheels.length) { van = wheels[0].parent; while (van && van.parent !== deliveryStation && van.parent) van = van.parent }
   }
   const vanHome = van ? van.position.clone() : null
+  const bakeInfo = bakeStatic(diorama, [van])
+  if (van) bakeStatic(van, wheels)
   const vanState = { t: -1 }
 
   // drifting petals (one instanced mesh)
   const PETALS = reduce ? 0 : lowPower ? 18 : 36
   const petalGeo = new PlaneGeometry(0.09, 0.06)
-  const petalMat = new MeshStandardMaterial({ color: 0xf6b7c6, side: DoubleSide, roughness: 0.9, flatShading: true })
+  const petalMat = new MeshBasicMaterial({ color: 0xffffff, side: DoubleSide, transparent: true, opacity: 0.9, depthWrite: false })
   const petals = PETALS ? new InstancedMesh(petalGeo, petalMat, PETALS) : null
   const petalData = []
   if (petals) {
     const pal = [0xf6b7c6, 0xfbf8f3, 0xf3a5bf, 0xf9d48a]
     for (let i = 0; i < PETALS; i++) {
-      petalData.push({ x: (Math.random() - 0.5) * 12, y: Math.random() * 6, z: (Math.random() - 0.5) * 12, s: 0.2 + Math.random() * 0.25, ph: Math.random() * 6.28, sp: 0.6 + Math.random() * 0.8 })
+      petalData.push({ x: (Math.random() - 0.5) * 10, y: Math.random() * 6, z: (Math.random() - 0.5) * 10, s: 0.2 + Math.random() * 0.25, ph: Math.random() * 6.28, sp: 0.6 + Math.random() * 0.8 })
       petals.setColorAt(i, new Color(pal[i % pal.length]))
     }
     world.add(petals)
@@ -145,12 +212,23 @@ export function createRenderer3D(canvas, opts = {}) {
 
   function tokenFor(o) {
     const g = makeBouquet(BOUQUET[o.color] || BOUQUET.mixed)
-    g.traverse(m => { if (m.isMesh) { m.castShadow = !lowPower; m.userData.orderId = o.id } })
-    const ring = g.getObjectByName('ring')
-    if (ring) { ring.material = ring.material.clone(); ring.material.transparent = true; ring.material.opacity = 0; ring.material.depthWrite = false }
+    g.traverse(m => { if (m.isMesh) m.castShadow = !lowPower })
+    const old = g.getObjectByName('ring')
+    if (old) old.parent.remove(old)
+    bakeStatic(g, [])
+    // flat glowing ring on the ground + a floating beacon (late / selected), readable from afar
+    const ring = new Mesh(RING_GEO, new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, side: DoubleSide }))
+    ring.rotation.x = -Math.PI / 2
+    ring.renderOrder = 2
+    ring.userData.s0 = 1
+    g.add(ring)
+    const beacon = new Mesh(BEACON_GEO, new MeshBasicMaterial({ color: LATE, transparent: true, opacity: 0, depthWrite: false }))
+    beacon.position.y = 0.95
+    g.add(beacon)
+    g.traverse(m => { if (m.isMesh) m.userData.orderId = o.id })
     g.userData.orderId = o.id
     world.add(g)
-    return { group: g, ring }
+    return { group: g, ring, beacon }
   }
 
   function setFloor(floor, now) {
@@ -231,9 +309,18 @@ export function createRenderer3D(canvas, opts = {}) {
       else g.rotation.y += (0 - g.rotation.y) * Math.min(1, dt * 4)
       if (k.ring) {
         const want = sel ? 0.95 : k.late ? 0.85 : hov ? 0.6 : 0
-        k.ring.material.color.setHex(sel ? 0xffffff : k.late ? LATE : 0xffffff)
+        k.ring.material.color.setHex(sel ? 0xff8fab : k.late ? LATE : 0xffffff)
+        if (sel && !reduce) k.ring.scale.setScalar(k.ring.userData.s0 * (1 + Math.sin(t * 4) * 0.08))
         k.ring.material.opacity += (want - k.ring.material.opacity) * Math.min(1, dt * 8)
-        k.ring.position.y = -g.position.y + 0.11 + 0.02
+        k.ring.position.y = (-g.position.y + 0.12) / g.scale.y
+      }
+      if (k.beacon) {
+        const wantB = sel ? 1 : k.late ? 0.95 : 0
+        k.beacon.material.color.setHex(sel ? 0xff8fab : LATE)
+        k.beacon.material.opacity += (wantB - k.beacon.material.opacity) * Math.min(1, dt * 8)
+        k.beacon.visible = k.beacon.material.opacity > 0.02
+        k.beacon.position.y = 0.95 + (reduce ? 0 : Math.sin(t * 3 + id) * 0.06)
+        k.beacon.rotation.y = reduce ? 0 : t * 1.5
       }
     }
 
@@ -296,7 +383,7 @@ export function createRenderer3D(canvas, opts = {}) {
         const p = petalData[i]
         p.y -= dt * 0.35 * p.sp
         p.x += Math.sin(t * 0.7 + p.ph) * dt * 0.25
-        if (p.y < -0.2) { p.y = 5 + Math.random() * 2; p.x = (Math.random() - 0.5) * 12; p.z = (Math.random() - 0.5) * 12 }
+        if (p.y < 0.05) { p.y = 5 + Math.random() * 2; p.x = (Math.random() - 0.5) * 10; p.z = (Math.random() - 0.5) * 10 }
         tmpO.position.set(p.x, p.y, p.z)
         tmpO.rotation.set(t * p.sp + p.ph, t * 0.8 * p.sp, p.ph)
         tmpO.scale.setScalar(p.s * 4)
@@ -347,7 +434,7 @@ export function createRenderer3D(canvas, opts = {}) {
   function stationLabels() {
     return Object.keys(STATION_POS).map(id => {
       const p = STATION_POS[id]
-      const s = toScreen(new Vector3(p[0], 1.55, p[1]))
+      const s = toScreen(new Vector3(p[0], 2.15, p[1]))
       return { id, x: s.x, y: s.y, visible: s.visible, count: (st.counts[id] && st.counts[id].count) || 0, late: (st.counts[id] && st.counts[id].late) || 0 }
     })
   }
@@ -373,6 +460,6 @@ export function createRenderer3D(canvas, opts = {}) {
     resetView: () => { st.yaw = -28 * DEG; st.pitch = 38 * DEG; st.zoom = 1 },
     get empty() { return st.empty },
     state: st,
-    info: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, tokens: tokens.size })
+    info: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, tokens: tokens.size, baked: bakeInfo })
   }
 }
