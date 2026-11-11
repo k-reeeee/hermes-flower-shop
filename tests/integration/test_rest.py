@@ -28,7 +28,7 @@ def test_health(store, client):
     body = r.json()
     assert body["ok"] is True
     assert body["version"]
-    assert body["schema_version"] == 2
+    assert body["schema_version"] == 3
     assert "orders" in body["counts"] and "inventory_items" in body["counts"]
 
 

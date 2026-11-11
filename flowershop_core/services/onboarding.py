@@ -186,13 +186,14 @@ def state(s: Store) -> dict:
     }
 
 
-def answer(s: Store, beat: str, answer_value: Any, actor: str = "owner") -> dict:
+def answer(s: Store, beat: str | None, answer_value: Any, actor: str = "owner") -> dict:
     """Validate + record one beat; advances and returns the next beat (spec §2, §5)."""
     beat = (beat or "").strip()
     if beat not in BEAT_IDS:
         raise ValidationError(f"Unknown onboarding beat {beat!r}. Valid beats: {', '.join(BEAT_IDS)}",
                               field="beat")
     with s.tx() as t:
+        profile._ensure(t)
         beats = _beats(t)
         beats[beat] = {"done": t.now, "answer": answer_value}
         _save_beats(t, beats)
@@ -228,11 +229,12 @@ def _valid_departments(deps: list[str]) -> None:
 def complete(s: Store, actor: str = "owner") -> dict:
     """Mark every beat done and update onboarding_complete (spec §2 beat 8)."""
     with s.tx() as t:
+        profile._ensure(t)
         beats = _beats(t)
         for b in BEAT_IDS:
-            rec = beats[b]
-            if not isinstance(rec, dict) or not rec.get("done"):
-                beats[b] = {"done": t.now, "answer": rec.get("answer") if isinstance(rec, dict) else None}
+            rec = beats.get(b) or {}
+            if not rec.get("done"):
+                beats[b] = {"done": t.now, "answer": rec.get("answer")}
         _save_beats(t, beats)
         t.audit("onboarding", None, "completed", actor)
     st = state(s)

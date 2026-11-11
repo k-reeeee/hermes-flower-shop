@@ -12,10 +12,14 @@ def _db_rows(store, table: str) -> int:
     return store.read().one(f"SELECT COUNT(*) n FROM {table}")["n"]
 
 
-def test_migrations_reach_schema_version_2(tmp_path):
+def test_migrations_reach_schema_version_3(tmp_path):
     fresh = Store(tmp_path / "fresh.db")
-    assert fresh.schema_version() == 2
-    assert fresh.schema_version() == 2  # idempotent on reopen
+    assert fresh.schema_version() == 3
+    assert fresh.schema_version() == 3  # idempotent on reopen
+    # new onboarding columns exist
+    cols = {r["name"] for r in fresh.read().all("PRAGMA table_info(business_profile)")}
+    for c in ("needs", "fit", "bots", "custom_plugin"):
+        assert c in cols
     # core tables exist
     tables = {r["name"] for r in fresh.read().all("SELECT name FROM sqlite_master WHERE type='table'")}
     for t in ("orders", "inventory_items", "recipes", "approvals", "audit_events",
