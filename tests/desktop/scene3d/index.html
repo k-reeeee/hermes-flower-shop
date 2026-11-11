@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>loading</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1b2027; overflow: hidden; }
+  canvas { display: block; }
+</style>
+<script type="importmap">
+  {
+    "imports": {
+      "three": "/node_modules/three/build/three.module.js",
+      "three/addons/": "/node_modules/three/examples/jsm/"
+    }
+  }
+</script>
+</head>
+<body>
+<canvas id="c" width="1100" height="620"></canvas>
+<script type="module">
+import * as THREE from 'three';
+import * as A from '/desktop/src/scene3d/assets.js';
+
+const params = new URLSearchParams(location.search);
+const solo = params.get('solo');
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(1100, 620, false);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#1b2027');
+
+scene.add(new THREE.HemisphereLight(0xfff4ec, 0x9cc28c, 1.1));
+
+const key = new THREE.DirectionalLight(0xfff1dd, 1.6);
+key.position.set(6, 10, 8);
+key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024);
+key.shadow.camera.left = -11;
+key.shadow.camera.right = 11;
+key.shadow.camera.top = 11;
+key.shadow.camera.bottom = -11;
+key.shadow.camera.near = 1;
+key.shadow.camera.far = 32;
+key.shadow.bias = -0.0006;
+key.shadow.normalBias = 0.02;
+key.shadow.camera.updateProjectionMatrix();
+scene.add(key);
+
+const fill = new THREE.DirectionalLight(0xd8e6ff, 0.32);
+fill.position.set(-5, -4, 5);
+scene.add(fill);
+
+const camera = new THREE.PerspectiveCamera(35, 1100 / 620, 0.1, 200);
+
+let target;
+if (solo) {
+  const [fn, arg] = solo.split(':');
+  const builder = A[fn];
+  const obj = builder ? (arg ? builder(arg) : builder()) : A.buildDiorama();
+  scene.add(obj);
+  const box = new THREE.Box3().setFromObject(obj);
+  const sphere = box.getBoundingSphere(new THREE.Sphere());
+  target = sphere.center.clone();
+  const dist = Math.max(
+    (sphere.radius / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) * 1.25,
+    1.2,
+  );
+  const dir = new THREE.Vector3(0.35, 0.26, 1).normalize();
+  camera.position.copy(target).addScaledVector(dir, dist);
+  camera.lookAt(target);
+} else {
+  scene.add(A.buildDiorama());
+  target = new THREE.Vector3(0, -0.9, 0);
+  camera.position.set(0, 8, 14);
+  camera.lookAt(target);
+}
+
+let frames = 0;
+
+// Geometry-only budget (renderer.info.render.triangles also counts the
+// shadow pass, so it reads higher than the scene's real triangle count).
+function sceneStats(root) {
+  let triangles = 0;
+  let meshes = 0;
+  root.traverse((n) => {
+    if (!n.isMesh) return;
+    meshes += 1;
+    const geo = n.geometry;
+    triangles += (geo.index ? geo.index.count : geo.attributes.position.count) / 3;
+  });
+  return { triangles: Math.round(triangles), meshes };
+}
+
+const stats = sceneStats(scene);
+
+function loop() {
+  renderer.render(scene, camera);
+  frames += 1;
+  if (frames === 1) {
+    document.title = 'done';
+    window.__result = {
+      triangles: renderer.info.render.triangles,
+      calls: renderer.info.render.calls,
+      sceneTriangles: stats.triangles,
+      meshes: stats.meshes,
+    };
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
