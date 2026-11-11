@@ -3,9 +3,13 @@ import { useState } from 'react'
 import { Button } from '@hermes/plugin-sdk'
 import { qs, rest, useAct, useApi, useOrder, useShop } from '../lib/api.js'
 import { deptLabel, fmtDateTime, humanize, money, num, paymentLabel, paymentTone, pct, prodLabel, statusLabel, stationLabel, actorLabel } from '../lib/format.js'
-import { C, Card, Empty, ErrorPanel, Muted, Pill, Q, SkeletonBlock, Td, Th, col, h, kv, row, runAct, tableStyle, txt } from '../lib/ui.js'
+import { C, Card, Icon, Muted, Pill, Q, SkeletonBlock, Td, Th, col, h, row, runAct, tableStyle, txt } from '../lib/ui.js'
+import { KV, StationChip } from './kit.js'
 import { AvailabilityBlock, CancelOrderDialog, ConfirmOrderDialog, PaymentDialog, ScheduleDeliveryDialog } from './dialogs.js'
 import { Due, StatusPill } from './common.js'
+
+const kv = (k, v) => h(KV, { key: k, k, v })
+const wrap = t => h('div', { className: 'fs-table-wrap' }, t)
 
 function EstimateBlock({ est, cur }) {
   return h(
@@ -16,12 +20,12 @@ function EstimateBlock({ est, cur }) {
     kv('Materials (est.)', money(est.material_cost_minor, cur)),
     kv('Gross margin (est.)', money(est.gross_margin_minor, cur) + '  (' + pct(est.gross_margin_pct) + ')'),
     est.lines && est.lines.length
-      ? h(
+      ? wrap(h(
           'table',
           { style: tableStyle },
           h('thead', null, h('tr', null, h(Th, null, 'Material'), h(Th, { align: 'right' }, 'Qty'), h(Th, { align: 'right' }, 'Cost'))),
           h('tbody', null, est.lines.map(l => h('tr', { key: l.sku }, h(Td, null, l.name), h(Td, { align: 'right' }, num(l.quantity)), h(Td, { align: 'right' }, money(l.cost_minor, cur)))))
-        )
+        ))
       : null
   )
 }
@@ -44,7 +48,7 @@ export function OrderPanel({ orderId, onClose, onOpenPayment }) {
   return h(
     'aside',
     { style: col(10, { minWidth: 0 }), 'aria-label': 'Order details' },
-    h('div', { style: row(8, { justifyContent: 'flex-end' }) }, h(Button, { size: 'xs', variant: 'ghost', onClick: onClose }, 'Close panel')),
+    h('div', { style: row(8, { justifyContent: 'space-between' }) }, h('span', { className: 'fs-overline' }, 'Order details'), h(Button, { size: 'xs', variant: 'ghost', onClick: onClose }, 'Close panel')),
     h(Q, { q, skeleton: h(SkeletonBlock, { rows: 6, height: 40 }) }, o => {
       const transitions = (o.allowed_transitions || []).filter(t => t !== 'CONFIRMED' && t !== 'CANCELLED')
       const canConfirm = o.status === 'PENDING_CONFIRMATION' || o.status === 'DRAFT'
@@ -55,8 +59,8 @@ export function OrderPanel({ orderId, onClose, onOpenPayment }) {
         { style: col(10) },
         h(
           Card,
-          null,
-          h('div', { style: row(8, { justifyContent: 'space-between', alignItems: 'flex-start' }) }, h('div', null, h('div', { style: txt(15, C.t1, { fontWeight: 600 }) }, o.order_number), h('div', { style: txt(12, C.t2) }, (o.customer && o.customer.name) || 'Customer')), h('div', { style: col(4, { alignItems: 'flex-end' }) }, h(StatusPill, { status: o.status }), o.station ? h(Muted, null, stationLabel(o.station)) : null)),
+          { i: 0 },
+          h('div', { style: row(8, { justifyContent: 'space-between', alignItems: 'flex-start' }) }, h('div', { style: { minWidth: 0 } }, h('div', { style: txt(15, C.t1, { fontWeight: 600 }) }, o.order_number), h('div', { style: txt(12, C.t2) }, (o.customer && o.customer.name) || 'Customer')), h('div', { style: col(4, { alignItems: 'flex-end' }) }, h(StatusPill, { status: o.status }), o.station ? h(StationChip, { station: o.station, label: stationLabel(o.station) }) : null)),
           h('div', { style: col(4, { marginTop: 8 }) }, kv('Requested for', h('span', null, fmtDateTime(o.requested_delivery_at, tz) + '  ', h(Due, { iso: o.requested_delivery_at, late: o.is_late, status: o.status }))), o.delivery_address ? kv('Deliver to', o.delivery_address) : kv('Delivery', 'Pickup'), o.notes ? kv('Notes', o.notes) : null, o.is_demo ? kv('Data', 'Demo order') : null),
           h(
             'div',
@@ -66,36 +70,36 @@ export function OrderPanel({ orderId, onClose, onOpenPayment }) {
             canCancel ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => setDlg('cancel') }, 'Cancel order') : null
           )
         ),
-        o.pending_approvals && o.pending_approvals.length ? h(Card, { title: 'Waiting for your approval' }, o.pending_approvals.map(a => h('div', { key: a.id, style: txt(12, C.t2) }, a.summary + ' (' + a.ref + ')'))) : null,
+        o.pending_approvals && o.pending_approvals.length ? h(Card, { title: 'Waiting for your approval', i: 1, style: { borderColor: 'var(--ui-yellow)' } }, o.pending_approvals.map(a => h('div', { key: a.id, style: row(8, txt(12, C.t2, { alignItems: 'flex-start' })) }, h(Icon, { name: 'bell', size: 12, style: { color: C.warn, marginTop: 3, flex: 'none' } }), h('span', { style: { minWidth: 0, overflowWrap: 'anywhere' } }, a.summary + ' (' + a.ref + ')')))) : null,
         h(
           Card,
-          { title: 'Items' },
-          h(
+          { title: 'Items', i: 1 },
+          wrap(h(
             'table',
             { style: tableStyle },
             h('thead', null, h('tr', null, h(Th, null, 'Item'), h(Th, { align: 'right' }, 'Qty'), h(Th, { align: 'right' }, 'Price'), h(Th, { align: 'right' }, 'Line total'))),
             h('tbody', null, (o.items || []).map(it => h('tr', { key: it.id }, h(Td, null, it.recipe_name || it.description), h(Td, { align: 'right' }, num(it.quantity)), h(Td, { align: 'right' }, money(it.unit_price_minor, cur)), h(Td, { align: 'right' }, money(it.line_total_minor, cur)))))
-          ),
+          )),
           h('div', { style: col(3, { marginTop: 8, borderTop: '1px solid ' + C.line, paddingTop: 8 }) }, kv('Subtotal', money(o.subtotal_minor, cur)), o.discount_minor ? kv('Discount', '-' + money(o.discount_minor, cur)) : null, kv('Delivery fee', money(o.delivery_fee_minor, cur)), kv('Total', h('strong', null, money(o.total_minor, cur))), kv('Paid', money(o.paid_minor, cur)), kv('Outstanding', h('span', { style: { color: o.outstanding_minor > 0 ? C.warn : C.ok } }, money(o.outstanding_minor, cur)))),
           h('div', { style: row(8, { marginTop: 8 }) }, h(Pill, { tone: paymentTone(o.payment_status) }, paymentLabel(o.payment_status)), o.payment_status !== 'PAID' && o.status !== 'CANCELLED' ? h(Button, { size: 'xs', variant: 'outline', onClick: () => setDlg('pay') }, 'Record payment') : null)
         ),
         h(
           Card,
-          { title: 'Stock and cost', right: h('div', { style: row(6) }, h(Button, { size: 'xs', variant: 'outline', onClick: avail.show }, 'Check availability'), h(Button, { size: 'xs', variant: 'outline', onClick: est.show }, 'Estimate cost')) },
+          { title: 'Stock and cost', i: 2, right: h('div', { style: row(6, { flexWrap: 'wrap', justifyContent: 'flex-end' }) }, h(Button, { size: 'xs', variant: 'outline', onClick: avail.show }, 'Check availability'), h(Button, { size: 'xs', variant: 'outline', onClick: est.show }, 'Estimate cost')) },
           !avail.on && !est.on ? h(Muted, { size: 12 }, 'Check that the flowers are on the shelf before you confirm, or see what this order costs you.') : null,
           avail.on ? h('div', { style: col(6) }, h(Q, { q: avail.q, skeleton: h(SkeletonBlock, { rows: 2, height: 28 }) }, d => h(AvailabilityBlock, { data: d }))) : null,
           est.on ? h('div', { style: { marginTop: avail.on ? 12 : 0 } }, h(Q, { q: est.q, skeleton: h(SkeletonBlock, { rows: 2, height: 28 }) }, d => h(EstimateBlock, { est: d, cur: d.currency || cur }))) : null
         ),
         h(
           Card,
-          { title: 'Production', },
+          { title: 'Production', i: 3 },
           o.production_tasks && o.production_tasks.length
-            ? o.production_tasks.map(t => h('div', { key: t.id, style: row(8, { justifyContent: 'space-between', padding: '3px 0' }) }, h('span', { style: txt(12, C.t1) }, 'Task ' + t.id + (t.assigned_to ? ' - ' + t.assigned_to : '')), h(Pill, { tone: t.is_late ? 'bad' : t.status === 'DONE' ? 'ok' : 'muted' }, prodLabel(t.status))))
+            ? o.production_tasks.map(t => h('div', { key: t.id, style: row(8, { justifyContent: 'space-between', padding: '3px 0' }) }, h('span', { style: txt(12, C.t1, { minWidth: 0, overflowWrap: 'anywhere' }) }, 'Task ' + t.id + (t.assigned_to ? ' - ' + t.assigned_to : '')), h(Pill, { tone: t.is_late ? 'bad' : t.status === 'DONE' ? 'ok' : 'muted' }, prodLabel(t.status))))
             : h(Muted, { size: 12 }, 'No production tasks yet. They are created when the order is confirmed.')
         ),
         h(
           Card,
-          { title: 'Delivery', right: !hasDelivery && ['CONFIRMED', 'IN_PRODUCTION', 'READY', 'FAILED_DELIVERY'].indexOf(o.status) >= 0 ? h(Button, { size: 'xs', variant: 'outline', onClick: () => setDlg('schedule') }, 'Schedule delivery') : null },
+          { title: 'Delivery', i: 4, right: !hasDelivery && ['CONFIRMED', 'IN_PRODUCTION', 'READY', 'FAILED_DELIVERY'].indexOf(o.status) >= 0 ? h(Button, { size: 'xs', variant: 'outline', onClick: () => setDlg('schedule') }, 'Schedule delivery') : null },
           hasDelivery
             ? h('div', { style: col(3) }, kv('When', fmtDateTime(o.delivery.scheduled_at, tz)), kv('Address', o.delivery.address || '-'), kv('Recipient', (o.delivery.recipient_name || '-') + (o.delivery.recipient_phone ? ' - ' + o.delivery.recipient_phone : '')), kv('Driver', o.delivery.assigned_to || 'not assigned'), kv('Status', humanize(o.delivery.status)))
             : h(Muted, { size: 12 }, 'No delivery scheduled yet.')
@@ -103,13 +107,13 @@ export function OrderPanel({ orderId, onClose, onOpenPayment }) {
         o.design_references && o.design_references.length
           ? h(
               Card,
-              { title: 'Design references' },
+              { title: 'Design references', i: 5 },
               o.design_references.map(d => h('div', { key: d.id, style: col(1, { padding: '4px 0', borderTop: '1px solid ' + C.line }) }, h('div', { style: txt(12, C.t1) }, d.prompt || humanize(d.kind)), h('div', { style: txt(11, C.t3, { wordBreak: 'break-all' }) }, humanize(d.kind) + ' - ' + d.asset_path)))
             )
           : null,
         h(
           Card,
-          { title: 'History' },
+          { title: 'History', i: 6 },
           h(
             'ol',
             { style: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 } },
