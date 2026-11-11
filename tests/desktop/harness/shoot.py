@@ -106,7 +106,7 @@ def snap(page, name):
 # WebGL in headless chromium: software GL via SwiftShader (the 3D floor needs it)
 GL_ARGS = ["--no-sandbox", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
 
-TABS = ["overview", "orders", "inventory", "production", "floor", "delivery", "finance", "team", "approvals", "setup"]
+TABS = ["overview", "orders", "inventory", "production", "floor", "delivery", "finance", "team", "approvals", "welcome"]
 
 with sync_playwright() as pw:
     try:
