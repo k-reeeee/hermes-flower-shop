@@ -1,0 +1,15 @@
+{
+  "name": "hermes-flower-shop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Flower Shop - AI business workspace plugin for Hermes Agent (desktop half build tooling)",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build-desktop.mjs",
+    "test:desktop": "node tests/desktop/load-gate.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

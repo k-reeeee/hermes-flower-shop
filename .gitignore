@@ -1,0 +1,10 @@
+__pycache__/
+*.py[co]
+.pytest_cache/
+node_modules/
+.venv/
+*.db
+*.db-wal
+*.db-shm
+tests/desktop/out/
+.DS_Store

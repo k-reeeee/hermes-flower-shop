@@ -1,0 +1,225 @@
+# Flower Shop
+
+**Flower Shop is an AI business operating workspace inside Hermes.** A small
+flower-shop owner talks to a coordinated AI team, follows the work on a native
+Desktop workspace, and approves every consequential action — against one shared
+record of orders, stock, production, deliveries, and money.
+
+Requires **Hermes >= 0.22.0**.
+
+## What it does
+
+- **An AI team, not a chatbot.** A business manager plus five department agents
+  (Sales, Inventory, Production, Finance, Logistics) work through controlled
+  tools and one set of business records.
+- **A native Desktop workspace.** Overview, Orders, Inventory + recipes,
+  Production board, 3D Shop Floor, Delivery, Finance, AI Team, and an Approvals
+  inbox are pages inside Hermes Desktop, not a separate dashboard.
+- **One source of truth.** Agents and the UI call the same service layer and
+  the same SQLite database. No department keeps its own copy of the truth.
+- **The owner stays in control.** Consequential actions create a PENDING
+  approval. The owner approves from an inline chat card, the Approvals inbox, or
+  an explicit chat relay. Agents propose; the owner approves.
+
+## Screenshots
+
+TODO: record the demo and drop the frames here.
+
+- `docs/screenshots/overview.png` — TODO
+- `docs/screenshots/orders.png` — TODO
+- `docs/screenshots/production.png` — TODO
+- `docs/screenshots/shop-floor-3d.png` — TODO
+- `docs/screenshots/approval-card.png` — TODO
+- `docs/screenshots/finance.png` — TODO
+
+## Features
+
+- **Overview** — what needs attention today: late orders, pending approvals,
+  ready-but-unpaid orders, delivery risks, expected revenue, and data gaps.
+- **Orders** — list and detail: customer, items, price, payment state, status
+  history, allowed next steps.
+- **Inventory + recipes** — stock on hand, reserved, and available; low-stock
+  and freshness risks; bouquet recipes with components and wastage factors.
+- **Production board** — tasks from queued to done across prep, assembly,
+  quality check, with materials required, reserved, and consumed.
+- **3D Shop Floor** — a low-poly, read-only view of the floor fed live by the
+  production state. Orders appear as tokens at the station they are in.
+- **Delivery** — schedule, assign, and track deliveries; status changes move the
+  order.
+- **Finance estimates** — recorded payments and expenses next to cost and margin
+  estimates, always labelled as estimates.
+- **AI Team** — the department roster, responsibilities, tools, and recent
+  activity, in plain business language.
+- **Approvals inbox + inline chat approval cards** — every gated action lands in
+  one queue and also renders as a live card in chat with Approve / Reject.
+- **Setup / onboarding + removable demo data** — a guided setup, and a demo shop
+  that can be loaded and cleared without touching real records.
+
+## How it works
+
+```
++------------------------------------------------------------------+
+| Hermes Desktop (Flower Shop workspace)                           |
+|  Overview . Orders . Inventory . Production . Shop Floor 3D      |
+|  Delivery . Finance . AI Team . Approvals                        |
++----------------------^-----------------------+-------------------+
+                       | REST /api/plugins/   | plugin.flower-shop.changed
+                       | flower-shop (ctx.rest)| (live invalidation)
++----------------------+-----------------------v-------------------+
+| Flower Shop plugin                                              |
+|  dashboard/plugin_api.py  ->  flowershop_core.services           |
+|  agent tools (flowershop_*)  ->  flowershop_core.services       |
+|  skills/ (manager + 5 department SKILL.md)                      |
++----------------------^------------------------------------------+
+                       | stdlib sqlite3, migrations, BEGIN IMMEDIATE
+                       v
+   <HERMES_HOME>/plugin-data/flower-shop/flowershop.db
+```
+
+Neither the Desktop UI nor the agent tools touch SQL. Only
+`flowershop_core.services` does, so every write is validated, transactional,
+and audited with the acting department.
+
+## Install
+
+Requires Hermes >= 0.22.0.
+
+```bash
+hermes plugins install OWNER/hermes-flower-shop
+```
+
+Then enable it:
+
+1. Add `flower-shop` to `plugins.enabled` in your Hermes `config.yaml`:
+   ```yaml
+   plugins:
+     enabled:
+       - flower-shop
+   ```
+2. Restart Hermes.
+3. In Desktop, open **Capabilities -> Plugins** and enable **Flower Shop**.
+4. Open the Flower Shop workspace and choose **Load demo shop** to start from a
+   realistic dataset.
+
+To remove the demo data later, use **Clear demo data** in the same place; it
+deletes only rows marked as demo.
+
+## Example prompts
+
+Type these into the Hermes chat:
+
+- "What needs attention today?"
+- "Ibu Sari wants a dozen red roses delivered tomorrow at 10am to Jl. Kemang
+  Raya 12, budget 400 thousand."
+- "How many red roses do we have?"
+- "What's the margin on FS-1012?"
+- "We received 50 stems of red roses at Rp9,000 each from Rawa Belong."
+- "Schedule FS-1012 for tomorrow at 10:00, Budi drives."
+
+## Tools
+
+Every tool takes an optional `department` argument and returns a JSON string.
+Read-only tools run freely; gated tools only create a pending approval.
+
+| Tool | Kind | Purpose |
+|---|---|---|
+| `flowershop_team_playbook` | read | Roster, department rules, approval policy |
+| `flowershop_get_briefing` | read | Daily operational overview |
+| `flowershop_get_business_profile` | read | Profile and onboarding state |
+| `flowershop_update_business_profile` | write | Change profile fields |
+| `flowershop_list_orders` | read | Order list |
+| `flowershop_get_order` | read | Order detail |
+| `flowershop_create_order_draft` | write | New draft order |
+| `flowershop_update_order_draft` | write | Edit a draft |
+| `flowershop_check_availability` | read | Required vs available stock |
+| `flowershop_estimate_order` | read | Cost and margin estimate |
+| `flowershop_request_order_confirmation` | approval | Confirm order, reserve stock |
+| `flowershop_request_order_cancellation` | approval | Cancel an order |
+| `flowershop_list_inventory` | read | Stock list |
+| `flowershop_get_inventory_item` | read | One item + movements |
+| `flowershop_create_inventory_item` | write | New SKU |
+| `flowershop_propose_stock_receipt` | approval | Receive stock |
+| `flowershop_propose_stock_adjustment` | approval | Correct a count (reason required) |
+| `flowershop_propose_wastage` | approval | Record wastage (reason required) |
+| `flowershop_list_recipes` | read | Bouquet recipes |
+| `flowershop_create_recipe` | write | New recipe |
+| `flowershop_list_production_tasks` | read | Production board |
+| `flowershop_update_production_status` | write | Advance or block a task |
+| `flowershop_schedule_delivery` | write | Book a delivery |
+| `flowershop_update_delivery_status` | write | Move a delivery's status |
+| `flowershop_list_deliveries` | read | Delivery list |
+| `flowershop_get_financial_summary` | read | Recorded money + estimates |
+| `flowershop_propose_payment` | approval | Record a payment |
+| `flowershop_propose_expense` | approval | Record an expense |
+| `flowershop_list_approvals` | read | Approval queue |
+| `flowershop_decide_approval` | owner-relayed | Approve/reject from chat, quoting the owner |
+| `flowershop_attach_design_reference` | write | Attach a bouquet image to an order |
+
+## Approvals
+
+Agents propose; the owner approves. These actions never execute from the agent
+alone:
+
+- Confirming or cancelling a customer order
+- Receiving, adjusting, or writing off stock
+- Recording a payment or an expense
+
+A gated tool call does not perform the action. It creates a PENDING approval and
+returns a directive. The agent shows the directive on its own line in chat, so
+Desktop renders a live card with **Approve** and **Reject** buttons. The owner
+can also decide from the Approvals inbox, or say yes in chat — that relay is
+allowed only when the `chat_approvals` setting is enabled and the tool call
+quotes the owner's exact words. Every decision is recorded as the owner, with a
+note.
+
+Read-only lookups and calculations run without approval. Every write identifies
+the acting department and creates an audit event.
+
+## Data and privacy
+
+- All business data lives in one SQLite database at
+  `<HERMES_HOME>/plugin-data/flower-shop/flowershop.db`.
+- The plugin makes **no network calls**, sends **no telemetry**, and stores **no
+  credentials**.
+- It runs **no shell commands** and reads nothing outside its own data directory.
+- Demo data is marked as demo and can be cleared from the workspace.
+
+## Limitations
+
+- **Not an accounting ledger.** Finance numbers are operational estimates plus
+  what you recorded. It is not tax-ready or bookkeeping software.
+- **WhatsApp intake** works only through the Hermes gateway you already have
+  configured; there is no special WhatsApp parsing in this plugin.
+- **Image generation** uses Hermes' built-in image tool; the plugin stores the
+  reference, it does not generate images itself.
+- **The bouquet canvas is not built.** Design references are images attached to
+  orders.
+- **Single shop, single user.** One database, one business profile; no
+  multi-branch or multi-staff access control.
+- The **3D Shop Floor is read-only**; all state changes happen through tools or
+  the board.
+
+## Development
+
+Layout:
+
+```
+flower-shop/
+  plugin.yaml            manifest
+  flowershop_core/       services, tools, migrations, seed (the only SQL)
+  dashboard/             REST bridge
+  desktop/               ESM sources + built plugin.js
+  skills/                manager + 5 department SKILL.md
+  scripts/               build-desktop.mjs
+  tests/                 unit, integration, desktop
+```
+
+```bash
+node scripts/build-desktop.mjs   # rebuild desktop/plugin.js
+python3 -m pytest tests          # backend tests
+hermes plugins validate .        # catalog admission gate
+```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
