@@ -17138,6 +17138,78 @@ var IcosahedronGeometry = class _IcosahedronGeometry extends PolyhedronGeometry 
     return new _IcosahedronGeometry(data.radius, data.detail);
   }
 };
+var OctahedronGeometry = class _OctahedronGeometry extends PolyhedronGeometry {
+  /**
+   * Constructs a new octahedron geometry.
+   *
+   * @param {number} [radius=1] - Radius of the octahedron.
+   * @param {number} [detail=0] - Setting this to a value greater than `0` adds vertices making it no longer a octahedron.
+   */
+  constructor(radius = 1, detail = 0) {
+    const vertices = [
+      1,
+      0,
+      0,
+      -1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      -1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      -1
+    ];
+    const indices = [
+      0,
+      2,
+      4,
+      0,
+      4,
+      3,
+      0,
+      3,
+      5,
+      0,
+      5,
+      2,
+      1,
+      2,
+      5,
+      1,
+      5,
+      3,
+      1,
+      3,
+      4,
+      1,
+      4,
+      2
+    ];
+    super(vertices, indices, radius, detail);
+    this.type = "OctahedronGeometry";
+    this.parameters = {
+      radius,
+      detail
+    };
+  }
+  /**
+   * Factory method for creating an instance of this class from the given
+   * JSON object.
+   *
+   * @param {Object} data - A JSON object representing the serialized geometry.
+   * @return {OctahedronGeometry} A new instance.
+   */
+  static fromJSON(data) {
+    return new _OctahedronGeometry(data.radius, data.detail);
+  }
+};
 var PlaneGeometry = class _PlaneGeometry extends BufferGeometry {
   /**
    * Constructs a new plane geometry.
@@ -32940,6 +33012,8 @@ function buildDiorama() {
 var DEG2 = Math.PI / 180;
 var LATE2 = 15026253;
 var FAN2 = [0, -40, 40, -80, 80, -120, 120];
+var RING_GEO = new RingGeometry(0.36, 0.5, 28);
+var BEACON_GEO = new OctahedronGeometry(0.1, 0);
 var clamp3 = (x, a, b) => x < a ? a : x > b ? b : x;
 var easeInOut = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 function tokenSlot2(sid, i) {
@@ -32950,6 +33024,59 @@ function tokenSlot2(sid, i) {
   const a = toward + (ring === 0 ? FAN2[k] : -135 + k * 30) * DEG2;
   const r = ring === 0 ? 0.62 : 1.15;
   return new Vector3(p[0] + Math.cos(a) * r, 0.1, p[1] + Math.sin(a) * r);
+}
+function bakeStatic(root, keep) {
+  root.updateMatrixWorld(true);
+  const skip = /* @__PURE__ */ new Set();
+  for (const k of keep) if (k) k.traverse((o) => skip.add(o));
+  const buckets = /* @__PURE__ */ new Map();
+  const victims = [];
+  root.traverse((o) => {
+    if (!o.isMesh || skip.has(o) || o.isInstancedMesh || Array.isArray(o.material)) return;
+    const m = o.material;
+    if (m.transparent || m.map || !m.isMeshStandardMaterial) return;
+    const key = [m.flatShading ? 1 : 0, m.roughness, m.metalness, m.side, m.emissive.getHexString(), o.castShadow ? "c" : "", o.receiveShadow ? "r" : ""].join("|");
+    const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+    g.applyMatrix4(o.matrixWorld);
+    for (const name of Object.keys(g.attributes)) if (name !== "position" && name !== "normal") g.deleteAttribute(name);
+    if (!g.attributes.normal) g.computeVertexNormals();
+    g.morphAttributes = {};
+    const n = g.attributes.position.count;
+    const col2 = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      col2[i * 3] = m.color.r;
+      col2[i * 3 + 1] = m.color.g;
+      col2[i * 3 + 2] = m.color.b;
+    }
+    g.setAttribute("color", new BufferAttribute(col2, 3));
+    if (!buckets.has(key)) buckets.set(key, { proto: m, cast: o.castShadow, recv: o.receiveShadow, geos: [] });
+    buckets.get(key).geos.push(g);
+    victims.push(o);
+  });
+  for (const o of victims) o.parent.remove(o);
+  const baked = new Group();
+  baked.name = "baked";
+  for (const b of buckets.values()) {
+    const merged = mergeGeometries(b.geos, false);
+    for (const g of b.geos) g.dispose();
+    if (!merged) continue;
+    const mat2 = sharedMat(b.proto);
+    const mesh = new Mesh(merged, mat2);
+    mesh.castShadow = b.cast;
+    mesh.receiveShadow = b.recv;
+    baked.add(mesh);
+  }
+  root.add(baked);
+  baked.matrixAutoUpdate = false;
+  baked.matrix.copy(root.matrixWorld).invert();
+  baked.matrixWorldNeedsUpdate = true;
+  return { meshes: victims.length, calls: baked.children.length };
+}
+var SHARED = /* @__PURE__ */ new Map();
+function sharedMat(m) {
+  const key = [m.flatShading ? 1 : 0, m.roughness, m.metalness, m.side, m.emissive.getHexString()].join("|");
+  if (!SHARED.has(key)) SHARED.set(key, new MeshStandardMaterial({ vertexColors: true, flatShading: m.flatShading, roughness: m.roughness, metalness: m.metalness, side: m.side, emissive: m.emissive.clone() }));
+  return SHARED.get(key);
 }
 function findChildWith(root, childName) {
   for (const c of root.children) if (c.getObjectByName(childName)) return c;
@@ -32985,6 +33112,9 @@ function createRenderer3D(canvas, opts = {}) {
   sun.shadow.normalBias = 0.03;
   sun.shadow.radius = 3;
   scene.add(sun);
+  const front = new DirectionalLight(16774894, 0.6);
+  front.position.set(1.5, 4, 12);
+  scene.add(front);
   const rim = new DirectionalLight(13228287, 0.55);
   rim.position.set(7, 5, -8);
   scene.add(rim);
@@ -33004,6 +33134,7 @@ function createRenderer3D(canvas, opts = {}) {
   });
   const mascot = makeMascot();
   mascot.position.set(0.3, 0, 1.2);
+  mascot.scale.setScalar(1.3);
   mascot.traverse((o) => {
     if (o.isMesh) o.castShadow = !lowPower;
   });
@@ -33017,6 +33148,7 @@ function createRenderer3D(canvas, opts = {}) {
     armR: mascot.getObjectByName("armR"),
     flower: mascot.getObjectByName("flower")
   };
+  bakeStatic(mascot, Object.values(mParts));
   for (const k of ["footL", "footR"]) if (mParts[k]) mParts[k].userData.y0 = mParts[k].position.y;
   const mState = { target: null, speed: 1.15, wave: 0, nextBlink: 1.5, blink: 0 };
   const flies = [];
@@ -33024,11 +33156,21 @@ function createRenderer3D(canvas, opts = {}) {
     const b = makeButterfly(c);
     b.scale.setScalar(0.9);
     world.add(b);
+    bakeStatic(b, [b.getObjectByName("wingL"), b.getObjectByName("wingR")]);
     flies.push({ obj: b, wl: b.getObjectByName("wingL"), wr: b.getObjectByName("wingR"), phase: i * 2.4, r: 3.2 + i * 1.3, h: 1.3 + i * 0.4, speed: 0.22 - i * 0.05 });
   });
   const clouds = [];
   for (let i = 0; i < 4; i++) {
     const c = makeCloud();
+    c.traverse((o) => {
+      if (o.isMesh) {
+        o.material = o.material.clone();
+        o.material.transparent = false;
+        o.material.opacity = 1;
+        o.castShadow = false;
+      }
+    });
+    bakeStatic(c, []);
     const a = i / 4 * Math.PI * 2 + 0.4;
     c.position.set(Math.cos(a) * 8.5, -2.2 - i % 2 * 1.1, Math.sin(a) * 8.5);
     c.scale.setScalar(1 + i % 3 * 0.35);
@@ -33048,16 +33190,18 @@ function createRenderer3D(canvas, opts = {}) {
     }
   }
   const vanHome = van ? van.position.clone() : null;
+  const bakeInfo = bakeStatic(diorama, [van]);
+  if (van) bakeStatic(van, wheels);
   const vanState = { t: -1 };
   const PETALS = reduce ? 0 : lowPower ? 18 : 36;
   const petalGeo = new PlaneGeometry(0.09, 0.06);
-  const petalMat = new MeshStandardMaterial({ color: 16168902, side: DoubleSide, roughness: 0.9, flatShading: true });
+  const petalMat = new MeshBasicMaterial({ color: 16777215, side: DoubleSide, transparent: true, opacity: 0.9, depthWrite: false });
   const petals = PETALS ? new InstancedMesh(petalGeo, petalMat, PETALS) : null;
   const petalData = [];
   if (petals) {
     const pal = [16168902, 16513267, 15967679, 16372874];
     for (let i = 0; i < PETALS; i++) {
-      petalData.push({ x: (Math.random() - 0.5) * 12, y: Math.random() * 6, z: (Math.random() - 0.5) * 12, s: 0.2 + Math.random() * 0.25, ph: Math.random() * 6.28, sp: 0.6 + Math.random() * 0.8 });
+      petalData.push({ x: (Math.random() - 0.5) * 10, y: Math.random() * 6, z: (Math.random() - 0.5) * 10, s: 0.2 + Math.random() * 0.25, ph: Math.random() * 6.28, sp: 0.6 + Math.random() * 0.8 });
       petals.setColorAt(i, new Color(pal[i % pal.length]));
     }
     world.add(petals);
@@ -33068,21 +33212,25 @@ function createRenderer3D(canvas, opts = {}) {
   function tokenFor(o) {
     const g = makeBouquet(BOUQUET[o.color] || BOUQUET.mixed);
     g.traverse((m) => {
-      if (m.isMesh) {
-        m.castShadow = !lowPower;
-        m.userData.orderId = o.id;
-      }
+      if (m.isMesh) m.castShadow = !lowPower;
     });
-    const ring = g.getObjectByName("ring");
-    if (ring) {
-      ring.material = ring.material.clone();
-      ring.material.transparent = true;
-      ring.material.opacity = 0;
-      ring.material.depthWrite = false;
-    }
+    const old = g.getObjectByName("ring");
+    if (old) old.parent.remove(old);
+    bakeStatic(g, []);
+    const ring = new Mesh(RING_GEO, new MeshBasicMaterial({ color: 16777215, transparent: true, opacity: 0, depthWrite: false, side: DoubleSide }));
+    ring.rotation.x = -Math.PI / 2;
+    ring.renderOrder = 2;
+    ring.userData.s0 = 1;
+    g.add(ring);
+    const beacon = new Mesh(BEACON_GEO, new MeshBasicMaterial({ color: LATE2, transparent: true, opacity: 0, depthWrite: false }));
+    beacon.position.y = 0.95;
+    g.add(beacon);
+    g.traverse((m) => {
+      if (m.isMesh) m.userData.orderId = o.id;
+    });
     g.userData.orderId = o.id;
     world.add(g);
-    return { group: g, ring };
+    return { group: g, ring, beacon };
   }
   function setFloor(floor, now) {
     const orders = floor && floor.orders || [];
@@ -33167,9 +33315,18 @@ function createRenderer3D(canvas, opts = {}) {
       else g.rotation.y += (0 - g.rotation.y) * Math.min(1, dt * 4);
       if (k.ring) {
         const want = sel ? 0.95 : k.late ? 0.85 : hov ? 0.6 : 0;
-        k.ring.material.color.setHex(sel ? 16777215 : k.late ? LATE2 : 16777215);
+        k.ring.material.color.setHex(sel ? 16748459 : k.late ? LATE2 : 16777215);
+        if (sel && !reduce) k.ring.scale.setScalar(k.ring.userData.s0 * (1 + Math.sin(t * 4) * 0.08));
         k.ring.material.opacity += (want - k.ring.material.opacity) * Math.min(1, dt * 8);
-        k.ring.position.y = -g.position.y + 0.11 + 0.02;
+        k.ring.position.y = (-g.position.y + 0.12) / g.scale.y;
+      }
+      if (k.beacon) {
+        const wantB = sel ? 1 : k.late ? 0.95 : 0;
+        k.beacon.material.color.setHex(sel ? 16748459 : LATE2);
+        k.beacon.material.opacity += (wantB - k.beacon.material.opacity) * Math.min(1, dt * 8);
+        k.beacon.visible = k.beacon.material.opacity > 0.02;
+        k.beacon.position.y = 0.95 + (reduce ? 0 : Math.sin(t * 3 + id) * 0.06);
+        k.beacon.rotation.y = reduce ? 0 : t * 1.5;
       }
     }
     if (mState.target && !reduce) {
@@ -33239,10 +33396,10 @@ function createRenderer3D(canvas, opts = {}) {
         const p = petalData[i];
         p.y -= dt * 0.35 * p.sp;
         p.x += Math.sin(t * 0.7 + p.ph) * dt * 0.25;
-        if (p.y < -0.2) {
+        if (p.y < 0.05) {
           p.y = 5 + Math.random() * 2;
-          p.x = (Math.random() - 0.5) * 12;
-          p.z = (Math.random() - 0.5) * 12;
+          p.x = (Math.random() - 0.5) * 10;
+          p.z = (Math.random() - 0.5) * 10;
         }
         tmpO.position.set(p.x, p.y, p.z);
         tmpO.rotation.set(t * p.sp + p.ph, t * 0.8 * p.sp, p.ph);
@@ -33293,7 +33450,7 @@ function createRenderer3D(canvas, opts = {}) {
   function stationLabels() {
     return Object.keys(STATION_POS).map((id) => {
       const p = STATION_POS[id];
-      const s = toScreen(new Vector3(p[0], 1.55, p[1]));
+      const s = toScreen(new Vector3(p[0], 2.15, p[1]));
       return { id, x: s.x, y: s.y, visible: s.visible, count: st.counts[id] && st.counts[id].count || 0, late: st.counts[id] && st.counts[id].late || 0 };
     });
   }
@@ -33345,7 +33502,7 @@ function createRenderer3D(canvas, opts = {}) {
       return st.empty;
     },
     state: st,
-    info: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, tokens: tokens.size })
+    info: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, tokens: tokens.size, baked: bakeInfo })
   };
 }
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased - design kit v1
+
+- Design kit: `docs/design/DESIGN_KIT.md` + `desktop/src/lib/tokens.js` + one `fs-` stylesheet driven by
+  container queries (compact <600, medium 600-959, wide >=960 of the *pane* width).
+- Today (Overview): bloom chart (one petal per order due today), generated day story, money card with
+  7-day sparkline, order-flow strip, day timeline, "Needs you" list with inline approvals.
+- Shop Floor: three.js renderer (soft shadows, ACES), low-poly asset kit, bouquet flights, Pip the mascot,
+  delivery van, butterflies, petals; static scenery baked to shared vertex-colour materials
+  (~140 draw calls desktop / ~85 phone). Canvas2D renderer kept as automatic fallback.
+  Touch: one-finger turn, pinch zoom, tap select, double-tap reset.
+- All pages responsive at 1440 / 820 / 390 px; icon tab strip on narrow panes.
+
 ## 0.1.0 — 2026-11-12
 
 First release. A coordinated AI team, a native Hermes Desktop workspace, and one
