@@ -17,6 +17,7 @@ import { FinancePage } from './finance.js'
 import { TeamPage } from './team.js'
 import { ApprovalsPage } from './approvals.js'
 import { SetupPage } from './setup.js'
+import { WelcomePage } from './welcome.js'
 
 const VERSION = __FLOWERSHOP_VERSION__
 
@@ -30,7 +31,8 @@ const PAGES = {
   finance: FinancePage,
   team: TeamPage,
   approvals: ApprovalsPage,
-  setup: SetupPage
+  setup: SetupPage,
+  welcome: WelcomePage
 }
 
 function Tabs({ value, pending }) {

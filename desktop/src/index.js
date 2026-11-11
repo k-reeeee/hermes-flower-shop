@@ -7,6 +7,8 @@ import { $nav, TAB_IDS, goTo, openNewOrder, setTab } from './lib/store.js'
 import { FlowerShopPage } from './pages/shell.js'
 import { ApprovalChip } from './components/chip.js'
 import { ApprovalCard, BriefingCard, OrderCard } from './directives/cards.js'
+import { onboardingDirectives } from './directives/onboarding.js'
+import { WelcomePage } from './pages/welcome.js'
 
 // Optional surfaces: feature-detect so an older host still loads the rest.
 const DIRECTIVE_AREA = SDK.TRANSCRIPT_DIRECTIVE_AREA || 'transcript.directives'
@@ -48,7 +50,8 @@ export default {
       { id: 'chip', area: STATUSBAR_RIGHT, order: 60, render: () => jsx(ApprovalChip, {}) },
       { id: 'dir-order', area: DIRECTIVE_AREA, data: { name: 'flowershop-order', render: p => jsx(OrderCard, { id: p.attrs && p.attrs.id, streaming: !!p.streaming }) } },
       { id: 'dir-approval', area: DIRECTIVE_AREA, data: { name: 'flowershop-approval', render: p => jsx(ApprovalCard, { id: p.attrs && p.attrs.id, streaming: !!p.streaming }) } },
-      { id: 'dir-briefing', area: DIRECTIVE_AREA, data: { name: 'flowershop-briefing', render: p => jsx(BriefingCard, { streaming: !!p.streaming }) } }
+      { id: 'dir-briefing', area: DIRECTIVE_AREA, data: { name: 'flowershop-briefing', render: p => jsx(BriefingCard, { streaming: !!p.streaming }) } },
+      ...onboardingDirectives.map(d => ({ ...d, area: DIRECTIVE_AREA }))
     ])
   }
 }

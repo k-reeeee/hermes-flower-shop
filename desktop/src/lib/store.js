@@ -11,15 +11,20 @@ export const TABS = [
   { id: 'inventory', label: 'Stock', icon: 'package' },
   { id: 'finance', label: 'Money', icon: 'graph-line' },
   { id: 'team', label: 'AI Team', icon: 'organization' },
-  { id: 'setup', label: 'Setup', icon: 'settings-gear' }
+  { id: 'welcome', label: 'Setup', icon: 'settings-gear' }
 ]
 export const TAB_IDS = TABS.map(t => t.id)
+
+// Backward alias: code that navigated to the old 'setup' tab lands on the
+// Welcome/Setup Studio surface, which replaces it.
+const TAB_ALIAS = { setup: 'welcome' }
 
 // preset: one-shot filter handed to a page (e.g. orders due today). seq bumps so pages can react.
 export const $nav = atom({ tab: 'overview', orderId: null, newOrder: false, preset: null, seq: 0 })
 
 export function setTab(tab, preset) {
   const cur = $nav.get()
+  tab = TAB_ALIAS[tab] || tab
   if (TAB_IDS.indexOf(tab) < 0) tab = 'overview'
   $nav.set({ ...cur, tab, preset: preset || null, seq: cur.seq + 1 })
 }
