@@ -1,0 +1,150 @@
+name: anthousa
+description: Ancient Greek garden — blush marble, rose-gold and laurel (48rem reading column)
+
+colors:
+  # ── Base surface ─────────────────────────────────────────────────────────────
+  # Blush marble, luminance 0.93 → the desktop paints light mode from this.
+  background: "#FAF6F3"
+
+  # ── Text hierarchy ──────────────────────────────────────────────────────────
+  banner_title: "#5A4438"        # warm stone-plum heading
+  banner_text: "#3B2F35"         # plum ink body (11.9:1 on marble)
+  banner_dim: "#7C6A72"          # mauve grey, 4.7:1 — muted but readable
+  ui_text: "#3B2F35"
+  banner_border: "#D8C4BB"       # warm stone hairline
+  ui_border: "#D8C4BB"
+
+  # ── Brand ───────────────────────────────────────────────────────────────────
+  # ui_accent is the GUI primary. #A25468 measures 4.80:1 against the sidebar,
+  # so the desktop contrast guard passes it through untouched.
+  # Gold lives in ui_label/session_label (chrome) and in customCSS rules —
+  # it is a decoration colour, never small body text (it cannot clear AA).
+  ui_accent: "#A25468"
+  banner_accent: "#A25468"
+  ui_label: "#8A6A2F"            # antique gold
+  response_border: "#A25468"
+  input_rule: "#D8C4BB"
+  prompt: "#3B2F35"
+
+  # ── Semantic ────────────────────────────────────────────────────────────────
+  ui_ok: "#3F7A56"               # laurel green (kept recognisably green)
+  ui_warn: "#96650F"             # ochre-amber, 4.7:1 (#B0741F measured 3.6:1)
+  ui_error: "#C2415A"            # rose-red, 4.7:1
+
+  # ── CLI / TUI chrome ────────────────────────────────────────────────────────
+  session_label: "#8A6A2F"
+  session_border: "#D8C4BB"
+  status_bar_bg: "#F3EAE5"
+  status_bar_text: "#3B2F35"
+  status_bar_strong: "#8A6A2F"
+  status_bar_dim: "#7C6A72"
+  status_bar_good: "#3F7A56"
+  status_bar_warn: "#96650F"
+  status_bar_bad: "#C2415A"
+  status_bar_critical: "#A83650"
+  selection_bg: "#F2DDD6"
+  completion_menu_bg: "#FFFDFB"
+  completion_menu_current_bg: "#F3E2DC"
+  completion_menu_meta_bg: "#FBF5F2"
+  completion_menu_meta_current_bg: "#F1DED8"
+  voice_status_bg: "#F3EAE5"
+  shell_dollar: "#3F7A56"
+
+branding:
+  agent_name: Hermes Agent
+  prompt_symbol: "❀"
+  help_header: "(❀) Available Commands"
+
+tool_prefix: "❀"
+
+customCSS: |
+  /* ─── Anthousa · reading layer ────────────────────────────────────────────
+     Layout + visibility knobs, all tunable from this one block.
+     Values that must beat the app's own rules carry !important: custom CSS is
+     injected as a plain <style>, and the app declares these inside @layer base. */
+
+  :root {
+    /* Centred 48rem reading column — the thread AND the composer read this. */
+    --composer-width: 48rem !important;
+    /* Air between prose paragraphs. */
+    --paragraph-gap: 0.85rem !important;
+    /* The garden palette, in one place. Retune gold/rose here only. */
+    --garden-gold: #8A6A2F;
+    --garden-rose: #A25468;
+    --garden-rule: 2px solid color-mix(in srgb, var(--garden-gold) 38%, transparent);
+  }
+
+  /* ── Main-chat text: margin ───────────────────────────────────────────────
+     One left gutter shared by prose, tools, todos and thinking. Widened from
+     the app's 0.75rem so the text sits off the pane edge instead of hugging it. */
+  :root {
+    --message-text-indent: 1.4rem !important;
+  }
+
+  /* ── Main-chat text: border ───────────────────────────────────────────────
+     A classical column edge down each assistant turn, plus a right gutter, so
+     turns read as separate entries rather than one continuous wash.
+     To make it prose-only, add  .aui-md  to the selector below. */
+  [data-slot='aui_assistant-message-content'] {
+    border-left: var(--garden-rule) !important;
+    padding-right: 0.9rem !important;
+    margin-block: 0.1rem 0.35rem !important;
+  }
+
+  /* ── Comfortable body copy for long reading (app default is 13px) ────────
+     --conversation-text-font-size is the variable the app actually reads.
+     --conversation-text-base-size is the name the older docs use; it is set
+     too so this block keeps working if a build expects it. */
+  [data-slot='aui_thread-content'] {
+    --conversation-text-font-size: 0.9375rem !important;
+    --conversation-text-base-size: 0.9375rem !important;
+  }
+
+  /* Serif to read, sans to act — only assistant prose switches.
+     Palatino first: humanist, inscription-adjacent, ships on Windows + macOS. */
+  [data-slot='aui_assistant-message-content'] {
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino,
+      'Book Antiqua', Georgia, 'Times New Roman', serif !important;
+    line-height: 1.6 !important;
+  }
+
+  /* ── Grecian detail: rules, quotes, headings, tables, links ────────────── */
+  [data-slot='aui_assistant-message-content'] .aui-md hr {
+    border: 0 !important;
+    height: 1px !important;
+    margin-block: 1.2rem !important;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--garden-gold) 55%, transparent),
+      transparent
+    ) !important;
+  }
+
+  [data-slot='aui_assistant-message-content'] .aui-md blockquote {
+    margin: 0.6rem 0 !important;
+    padding: 0.35rem 0.9rem !important;
+    border-left: var(--garden-rule) !important;
+    border-radius: 0 8px 8px 0 !important;
+    background: color-mix(in srgb, var(--garden-rose) 8%, transparent) !important;
+  }
+
+  [data-slot='aui_assistant-message-content'] .aui-md h2 {
+    padding-bottom: 0.28rem !important;
+    border-bottom: 1px solid
+      color-mix(in srgb, var(--garden-gold) 30%, transparent) !important;
+  }
+
+  [data-slot='aui_assistant-message-content'] .aui-md .aui-md-table thead {
+    background: color-mix(in srgb, var(--garden-rose) 10%, transparent) !important;
+  }
+
+  [data-slot='aui_assistant-message-content'] .aui-md a {
+    text-underline-offset: 3px !important;
+    text-decoration-thickness: 1px !important;
+  }
+
+  /* Keep code blocks and tables scrolling inside the column. */
+  [data-slot='aui_assistant-message-content'] .aui-md :where(pre, table) {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+  }

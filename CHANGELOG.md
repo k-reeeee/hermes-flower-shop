@@ -1,7 +1,21 @@
 # Changelog
 
-## Unreleased - design kit v1
+## Unreleased — design kit v1 + Anthousa theme
 
+- **Theme:** `theme/` ships *Anthousa*, a matching Hermes skin in two variants —
+  marble daylight and aubergine dusk — plus a self-contained palette preview.
+  Re-skins Desktop, TUI and CLI from one file; every text colour clears WCAG AA.
+- **The theme is offered, never applied.** No install hook, first-run action or
+  default touches `display.skin`; the switch is Hermes' own
+  `config.set {key: "skin"}`, performed by the owner's click. `install-theme.sh`
+  copies the files and changes nothing unless you pass `--activate`;
+  `restore-theme.sh` rolls back.
+- **New optional onboarding beat (8):** introduces the theme, offers both variants
+  plus "Keep my current theme", and remembers the skin that was active beforehand
+  so an Undo can switch straight back. Skipping it still leaves setup complete.
+- Backend for the offer: `services/theme.py`, the read-only `hermes_env.py`,
+  `GET|POST /theme`, `POST /theme/revert`, and two tools
+  (`flowershop_get_theme`, `flowershop_choose_theme`) — 39 tools total.
 - Design kit: `docs/design/DESIGN_KIT.md` + `desktop/src/lib/tokens.js` + one `fs-` stylesheet driven by
   container queries (compact <600, medium 600-959, wide >=960 of the *pane* width).
 - Today (Overview): bloom chart (one petal per order due today), generated day story, money card with

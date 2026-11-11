@@ -32,9 +32,10 @@ docs_url: https://github.com/k-reeeee/hermes-flower-shop#readme
 version: "0.1.0"
 image: ""  # TODO: https://raw.githubusercontent.com/k-reeeee/hermes-flower-shop/<sha>/docs/banner.png
 screenshots:
-  # TODO: capture these and pin each URL to the entry's commit.
+  # TODO: pin each URL to the entry's commit (replace the 40-zero sha).
   - https://raw.githubusercontent.com/k-reeeee/hermes-flower-shop/0000000000000000000000000000000000000000/docs/screenshots/overview.png
   - https://raw.githubusercontent.com/k-reeeee/hermes-flower-shop/0000000000000000000000000000000000000000/docs/screenshots/orders.png
+  - https://raw.githubusercontent.com/k-reeeee/hermes-flower-shop/0000000000000000000000000000000000000000/docs/screenshots/inventory.png
   - https://raw.githubusercontent.com/k-reeeee/hermes-flower-shop/0000000000000000000000000000000000000000/docs/screenshots/production.png
   - https://raw.githubusercontent.com/k-reeeee/hermes-flower-shop/0000000000000000000000000000000000000000/docs/screenshots/shop-floor-3d.png
   - https://raw.githubusercontent.com/k-reeeee/hermes-flower-shop/0000000000000000000000000000000000000000/docs/screenshots/approval-card.png
@@ -52,6 +53,9 @@ capabilities:
     - flowershop_get_briefing
     - flowershop_get_business_profile
     - flowershop_update_business_profile
+    - flowershop_reset_onboarding
+    - flowershop_get_theme
+    - flowershop_choose_theme
     - flowershop_list_orders
     - flowershop_get_order
     - flowershop_create_order_draft

@@ -136,7 +136,7 @@ if (plugin) {
   ok(chip && typeof chip.render === 'function' && chip.render().type, 'status bar chip missing')
   const dirs = calls.regs.filter(c => c.area === 'transcript.directives')
   const dnames = dirs.map(d => d.data.name).sort()
-  ok(JSON.stringify(dnames) === JSON.stringify(['flowershop-approval', 'flowershop-briefing', 'flowershop-onboarding-bots', 'flowershop-onboarding-fit', 'flowershop-onboarding-needs', 'flowershop-onboarding-team', 'flowershop-onboarding-type', 'flowershop-order']), 'directives wrong: ' + dnames)
+  ok(JSON.stringify(dnames) === JSON.stringify(['flowershop-approval', 'flowershop-briefing', 'flowershop-onboarding-bots', 'flowershop-onboarding-fit', 'flowershop-onboarding-needs', 'flowershop-onboarding-team', 'flowershop-onboarding-theme', 'flowershop-onboarding-type', 'flowershop-order']), 'directives wrong: ' + dnames)
   for (const d of dirs) {
     let threw = null
     try {

@@ -1,0 +1,148 @@
+name: anthousa-night
+description: Ancient Greek garden at dusk — plum night, rose-gold and moonlight (48rem reading column)
+
+colors:
+  # ── Base surface ─────────────────────────────────────────────────────────────
+  # Aubergine night, luminance 0.012 → the desktop paints dark mode from this.
+  background: "#231A21"
+
+  # ── Text hierarchy ──────────────────────────────────────────────────────────
+  banner_title: "#E5C07B"        # moonlight gold
+  banner_text: "#F4E9E4"         # warm ivory (14.2:1 on plum)
+  banner_dim: "#9C8A8F"          # mauve grey, 5.2:1
+  ui_text: "#F4E9E4"
+  banner_border: "#46363F"       # plum hairline
+  ui_border: "#46363F"
+
+  # ── Brand ───────────────────────────────────────────────────────────────────
+  # #E8A2B0 measures 7.9:1 against the sidebar, so the desktop contrast guard
+  # leaves it untouched. Gold is decoration (chrome + customCSS rules), not body.
+  ui_accent: "#E8A2B0"
+  banner_accent: "#E8A2B0"
+  ui_label: "#E5C07B"
+  response_border: "#E8A2B0"
+  input_rule: "#46363F"
+  prompt: "#F4E9E4"
+
+  # ── Semantic ────────────────────────────────────────────────────────────────
+  ui_ok: "#86CFA1"               # laurel green (kept recognisably green)
+  ui_warn: "#E8B44C"             # amber
+  ui_error: "#E8737F"            # rose-red
+
+  # ── CLI / TUI chrome ────────────────────────────────────────────────────────
+  session_label: "#E5C07B"
+  session_border: "#46363F"
+  status_bar_bg: "#2B2029"
+  status_bar_text: "#F4E9E4"
+  status_bar_strong: "#E5C07B"
+  status_bar_dim: "#A79499"
+  status_bar_good: "#86CFA1"
+  status_bar_warn: "#E8B44C"
+  status_bar_bad: "#E8737F"
+  status_bar_critical: "#EF8A94"
+  selection_bg: "#4A3641"
+  completion_menu_bg: "#2B2029"
+  completion_menu_current_bg: "#4A3641"
+  completion_menu_meta_bg: "#261C24"
+  completion_menu_meta_current_bg: "#463440"
+  voice_status_bg: "#2B2029"
+  shell_dollar: "#86CFA1"
+
+branding:
+  agent_name: Hermes Agent
+  prompt_symbol: "❀"
+  help_header: "(❀) Available Commands"
+
+tool_prefix: "❀"
+
+customCSS: |
+  /* ─── Anthousa · reading layer ────────────────────────────────────────────
+     Layout + visibility knobs, all tunable from this one block.
+     Values that must beat the app's own rules carry !important: custom CSS is
+     injected as a plain <style>, and the app declares these inside @layer base. */
+
+  :root {
+    /* Centred 48rem reading column — the thread AND the composer read this. */
+    --composer-width: 48rem !important;
+    /* Air between prose paragraphs. */
+    --paragraph-gap: 0.85rem !important;
+    /* The garden palette, in one place. Retune gold/rose here only. */
+    --garden-gold: #E5C07B;
+    --garden-rose: #E8A2B0;
+    --garden-rule: 2px solid color-mix(in srgb, var(--garden-gold) 40%, transparent);
+  }
+
+  /* ── Main-chat text: margin ───────────────────────────────────────────────
+     One left gutter shared by prose, tools, todos and thinking. Widened from
+     the app's 0.75rem so the text sits off the pane edge instead of hugging it. */
+  :root {
+    --message-text-indent: 1.4rem !important;
+  }
+
+  /* ── Main-chat text: border ───────────────────────────────────────────────
+     A classical column edge down each assistant turn, plus a right gutter, so
+     turns read as separate entries rather than one continuous wash.
+     To make it prose-only, add  .aui-md  to the selector below. */
+  [data-slot='aui_assistant-message-content'] {
+    border-left: var(--garden-rule) !important;
+    padding-right: 0.9rem !important;
+    margin-block: 0.1rem 0.35rem !important;
+  }
+
+  /* ── Comfortable body copy for long reading (app default is 13px) ────────
+     --conversation-text-font-size is the variable the app actually reads.
+     --conversation-text-base-size is the name the older docs use; it is set
+     too so this block keeps working if a build expects it. */
+  [data-slot='aui_thread-content'] {
+    --conversation-text-font-size: 0.9375rem !important;
+    --conversation-text-base-size: 0.9375rem !important;
+  }
+
+  /* Serif to read, sans to act — only assistant prose switches.
+     Palatino first: humanist, inscription-adjacent, ships on Windows + macOS. */
+  [data-slot='aui_assistant-message-content'] {
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino,
+      'Book Antiqua', Georgia, 'Times New Roman', serif !important;
+    line-height: 1.6 !important;
+  }
+
+  /* ── Grecian detail: rules, quotes, headings, tables, links ────────────── */
+  [data-slot='aui_assistant-message-content'] .aui-md hr {
+    border: 0 !important;
+    height: 1px !important;
+    margin-block: 1.2rem !important;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--garden-gold) 55%, transparent),
+      transparent
+    ) !important;
+  }
+
+  [data-slot='aui_assistant-message-content'] .aui-md blockquote {
+    margin: 0.6rem 0 !important;
+    padding: 0.35rem 0.9rem !important;
+    border-left: var(--garden-rule) !important;
+    border-radius: 0 8px 8px 0 !important;
+    background: color-mix(in srgb, var(--garden-rose) 12%, transparent) !important;
+  }
+
+  [data-slot='aui_assistant-message-content'] .aui-md h2 {
+    padding-bottom: 0.28rem !important;
+    border-bottom: 1px solid
+      color-mix(in srgb, var(--garden-gold) 32%, transparent) !important;
+  }
+
+  [data-slot='aui_assistant-message-content'] .aui-md .aui-md-table thead {
+    background: color-mix(in srgb, var(--garden-rose) 14%, transparent) !important;
+  }
+
+  [data-slot='aui_assistant-message-content'] .aui-md a {
+    text-underline-offset: 3px !important;
+    text-decoration-thickness: 1px !important;
+  }
+
+  /* Keep code blocks and tables scrolling inside the column. */
+  [data-slot='aui_assistant-message-content'] .aui-md :where(pre, table) {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+  }

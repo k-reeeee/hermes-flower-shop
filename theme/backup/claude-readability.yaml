@@ -1,0 +1,45 @@
+name: claude-readability
+description: Claude-inspired readability — 768px reading column, serif prose, warm cream/clay palette
+colors:
+  background: "#f5f4ed"
+  banner_border: "#d9d5c8"
+  banner_title: "#141413"
+  banner_accent: "#c96442"
+  banner_text: "#141413"
+  banner_dim: "#5e5d59"
+  ui_text: "#141413"
+  ui_accent: "#c96442"
+  ui_border: "#d9d5c8"
+  ui_error: "#b3402a"
+  status_bar_bg: "#f5f4ed"
+  status_bar_text: "#141413"
+  session_border: "#d9d5c8"
+  completion_menu_bg: "#ffffff"
+customCSS: |
+  /* Claude-style reading column: 768px max, centered. This one variable drives
+     the thread content AND the composer (both read --composer-width). */
+  :root {
+    --composer-width: 48rem;
+  }
+
+  /* A little more air between paragraphs. */
+  :root {
+    --paragraph-gap: 0.85rem;
+  }
+
+  /* Serif to read, sans to act — only assistant prose switches. */
+  [data-slot='aui_assistant-message-content'] {
+    font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+    line-height: 1.55;
+  }
+
+  /* Comfortable body size for long reading (app default is 13px). */
+  [data-slot='aui_thread-content'] {
+    --conversation-text-base-size: 0.9375rem;
+  }
+
+  /* Keep code blocks and tables scrolling inside the column. */
+  [data-slot='aui_assistant-message-content'] .aui-md :where(pre, table) {
+    max-width: 100%;
+    overflow-x: auto;
+  }

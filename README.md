@@ -25,7 +25,9 @@ Requires **Hermes >= 0.22.0**.
 
 ![Overview — what needs attention today](docs/screenshots/overview.png)
 
-![Orders — list and detail](docs/screenshots/orders.png)
+![Orders — list and detail, with availability check and cost estimate](docs/screenshots/orders.png)
+
+![Inventory — stock on hand, reserved and available, plus bouquet recipes](docs/screenshots/inventory.png)
 
 ![Production board — queued to done](docs/screenshots/production.png)
 
@@ -33,7 +35,32 @@ Requires **Hermes >= 0.22.0**.
 
 ![Approval card in chat — Approve / Reject](docs/screenshots/approval-card.png)
 
-![Shop Floor page — orders as tokens at their station](docs/screenshots/shop-floor-page.png)
+## Theme — *Anthousa* (optional)
+
+The repo ships a matching Hermes skin in [`theme/`](theme/): **Anthousa**, a
+light "marble daylight" garden palette with a dark twin, **Anthousa Night**.
+One YAML file per polarity, and it re-skins the Desktop GUI, the TUI and the
+CLI from the same palette — so the workspace and the shell around it look like
+the same product.
+
+![Anthousa — light and dusk palettes side by side](theme/preview.png)
+
+Nothing applies itself: installing the plugin never changes your theme. The
+optional **Theme** beat in onboarding shows both variants and applies one only
+when you click it, with an **Undo** that switches straight back. From a
+terminal, the same two steps:
+
+```bash
+./theme/install-theme.sh                  # copy both skins; switches nothing
+./theme/install-theme.sh --activate       # copy both, then switch to the marble twin
+./theme/install-theme.sh --activate anthousa-night   # ...or the dusk twin
+./theme/restore-theme.sh                  # back to whatever this machine had before
+```
+
+Every colour that lands as text clears WCAG AA on the surface it sits on; see
+[`theme/README.md`](theme/README.md) for the palette table, the contrast audit
+and the design rationale. The plugin does not depend on the theme — it is a
+companion, not a requirement.
 
 ## Features
 

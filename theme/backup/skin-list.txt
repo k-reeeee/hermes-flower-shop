@@ -1,0 +1,11 @@
+  default          builtin  Classic Hermes — gold and kawaii
+  ares             builtin  War-god theme — crimson and bronze
+  mono             builtin  Monochrome — clean grayscale
+  slate            builtin  Cool blue — developer-focused
+  daylight         builtin  Light theme for bright terminals with dark text and cool blue accents
+  warm-lightmode   builtin  Warm light mode — dark brown/gold text for light terminal backgrounds
+  poseidon         builtin  Ocean-god theme — deep blue and seafoam
+  sisyphus         builtin  Sisyphean theme — austere grayscale with persistence
+  charizard        builtin  Volcanic theme — burnt orange and ember
+* claude-readability-dark user     Claude-inspired dark reading theme — 768px column, serif prose, warm charcoal/clay
+  claude-readability user     Claude-inspired readability — 768px reading column, serif prose, warm cream/clay palette
