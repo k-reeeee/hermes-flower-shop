@@ -49,6 +49,87 @@ def test_tool_schema_names_and_departments_valid(store):
     assert attack_schemas, "all approval-gated tools must be defined"
 
 
+def test_create_bot_profile_failure_does_not_record(store, monkeypatch):
+    """When profile creation fails, create_bot returns profile_create_failed and
+    does NOT record the bots choice. Hermes tooling is injected as a fake so the
+    test is hermetic regardless of whether hermes_cli is installed."""
+    import sys
+    from types import SimpleNamespace
+    from flowershop_core.services import onboarding as ob
+
+    class _Profiles:
+        def create_profile(self, **kw):
+            raise RuntimeError("boom")
+
+    fake = SimpleNamespace(profiles=_Profiles())
+    monkeypatch.setitem(sys.modules, "hermes_cli", fake)
+
+    assert ob.state(store)["bots"] == []
+    d = call("flowershop_create_bot", {"bots": [{"name": "Sales assistant", "profile": "flower-shop-sales"}]})
+    assert d["ok"] is False
+    assert d["error"] == "profile_create_failed"
+    # choice not recorded
+    assert ob.state(store)["bots"] == []
+    assert ob.state(store)["complete"] is False
+
+
+def test_create_bot_records_choice_on_success(store, monkeypatch):
+    """When all profiles create, create_bot records the bots choice and returns
+    the created list + state."""
+    import sys
+    from pathlib import Path
+    from types import SimpleNamespace
+    from flowershop_core.services import onboarding as ob
+
+    class _Profiles:
+        calls = []
+        def create_profile(self, **kw):
+            self.calls.append(kw)
+            return Path("/tmp/fake-profile")
+
+    fake = SimpleNamespace(profiles=_Profiles())
+    monkeypatch.setitem(sys.modules, "hermes_cli", fake)
+
+    d = call("flowershop_create_bot", {"bots": [
+        {"name": "Sales assistant", "profile": "flower-shop-sales", "purpose": "take orders"},
+        {"name": "Inventory assistant", "profile": "flower-shop-inventory"},
+    ]})
+    assert d["ok"] is True
+    assert len(d["created"]) == 2
+    assert d["created"][0]["name"] == "Sales assistant"
+    assert d["created"][0]["profile_path"] == "/tmp/fake-profile"
+    # each profile created with the documented kwargs
+    assert fake.profiles.calls[0]["name"] == "Sales assistant"
+    assert fake.profiles.calls[0]["no_skills"] is True
+    assert fake.profiles.calls[0]["no_alias"] is True
+    assert fake.profiles.calls[0]["description"] == "take orders"  # purpose fallback
+    # choice recorded
+    st = ob.state(store)
+    assert st["bots"] == [
+        {"name": "Sales assistant", "profile": "flower-shop-sales", "purpose": "take orders"},
+        {"name": "Inventory assistant", "profile": "flower-shop-inventory"},
+    ]
+
+
+def test_create_bot_validates_input(store):
+    d = call("flowershop_create_bot", {"bots": "not-a-list"})
+    assert d["ok"] is False and d["error"] == "validation_error"
+    d = call("flowershop_create_bot", {"bots": [{"name": "x"}]})
+    assert d["ok"] is False and d["error"] == "validation_error"
+
+
+def test_reset_onboarding_tool(store):
+    from flowershop_core.services import onboarding as ob
+    ob.answer(store, "needs", ["Orders & customers"])
+    ob.complete(store)
+    assert ob.state(store)["complete"] is True
+    d = call("flowershop_reset_onboarding", {})
+    assert d["ok"] is True
+    assert d["state"]["complete"] is False
+    assert d["state"]["needs"] == []
+    assert ob.state(store)["current_step"] == "welcome"
+
+
 def test_read_tools_happy_path(store):
     # seed a little data and read it back through the tools
     item = make_item(store, sku="HAPPY-ROSE", qty=50)

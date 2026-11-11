@@ -63,6 +63,20 @@ def test_complete_onboarding(store, client):
     assert onboarding.state(store)["complete"] is True
 
 
+def test_reset_onboarding_endpoint(store, client):
+    _pc(client, "/onboarding/beat", beat="needs", answer=["Orders & customers"])
+    _pc(client, "/onboarding/complete")
+    assert _get(client, "/onboarding").json()["complete"] is True
+    r = _pc(client, "/onboarding/reset")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["complete"] is False
+    assert body["needs"] == [] and body["bots"] == [] and body["fit"] == {}
+    assert body["current_step"] == "welcome"
+    # persisted
+    assert _get(client, "/onboarding").json()["complete"] is False
+
+
 def test_tool_and_rest_read_same_onboarding(store, client):
     from flowershop_core.tools import TOOLS
 
