@@ -3,7 +3,7 @@ version: 0.1.0
 description: "Run a flower shop with an AI team inside Hermes: sales, inventory, production, finance and logistics agents propose, and the owner approves on live desktop cards. Orders, recipes, stock, production, delivery and money estimates in one local SQLite database - no network calls."
 author: Flower Shop contributors
 license: MIT
-homepage: https://github.com/OWNER/hermes-flower-shop
+homepage: https://github.com/k-reeeee/hermes-flower-shop
 manifest_version: 2
 api_version: 1
 requires_hermes: ">=0.22.0"

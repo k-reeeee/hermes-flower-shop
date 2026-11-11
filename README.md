@@ -23,14 +23,17 @@ Requires **Hermes >= 0.22.0**.
 
 ## Screenshots
 
-TODO: record the demo and drop the frames here.
+![Overview — what needs attention today](docs/screenshots/overview.png)
 
-- `docs/screenshots/overview.png` — TODO
-- `docs/screenshots/orders.png` — TODO
-- `docs/screenshots/production.png` — TODO
-- `docs/screenshots/shop-floor-3d.png` — TODO
-- `docs/screenshots/approval-card.png` — TODO
-- `docs/screenshots/finance.png` — TODO
+![Orders — list and detail](docs/screenshots/orders.png)
+
+![Production board — queued to done](docs/screenshots/production.png)
+
+![3D Shop Floor — read-only, fed by live production state](docs/screenshots/shop-floor-3d.png)
+
+![Approval card in chat — Approve / Reject](docs/screenshots/approval-card.png)
+
+![Shop Floor page — orders as tokens at their station](docs/screenshots/shop-floor-page.png)
 
 ## Features
 
@@ -85,7 +88,7 @@ and audited with the acting department.
 Requires Hermes >= 0.22.0.
 
 ```bash
-hermes plugins install OWNER/hermes-flower-shop
+hermes plugins install k-reeeee/hermes-flower-shop
 ```
 
 Then enable it:

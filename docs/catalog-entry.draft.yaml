@@ -1,11 +1,11 @@
 # Draft catalog entry. Copy to plugin-catalog/flower-shop.yaml in a PR.
-# TODO: replace OWNER with the real GitHub owner, and replace the 40-zero sha
+# TODO: replace k-reeeee with the real GitHub owner, and replace the 40-zero sha
 # with the exact commit SHA to pin. Both must be resolved before submission.
 # Note: the catalog schema has no `tags` field; search keywords belong in the
 # description below.
 
 name: flower-shop
-repo: https://github.com/OWNER/hermes-flower-shop
+repo: https://github.com/k-reeeee/hermes-flower-shop
 sha: "0000000000000000000000000000000000000000"  # TODO: exact 40-char commit SHA
 title: Flower Shop
 description: >-
@@ -24,20 +24,20 @@ description: >-
   telemetry. Not an accounting ledger: finance figures are operational estimates
   plus recorded payments and expenses. Single shop, single user; no WhatsApp
   parsing, no bouquet canvas, no multi-branch support.
-maintainer: OWNER  # TODO: real maintainer handle
+maintainer: k-reeeee  # TODO: real maintainer handle
 tier: community
 category: desktop
 requires_hermes: '>=0.22.0'
-docs_url: https://github.com/OWNER/hermes-flower-shop#readme
+docs_url: https://github.com/k-reeeee/hermes-flower-shop#readme
 version: "0.1.0"
-image: ""  # TODO: https://raw.githubusercontent.com/OWNER/hermes-flower-shop/<sha>/docs/banner.png
+image: ""  # TODO: https://raw.githubusercontent.com/k-reeeee/hermes-flower-shop/<sha>/docs/banner.png
 screenshots:
   # TODO: capture these and pin each URL to the entry's commit.
-  - https://raw.githubusercontent.com/OWNER/hermes-flower-shop/0000000000000000000000000000000000000000/docs/screenshots/overview.png
-  - https://raw.githubusercontent.com/OWNER/hermes-flower-shop/0000000000000000000000000000000000000000/docs/screenshots/orders.png
-  - https://raw.githubusercontent.com/OWNER/hermes-flower-shop/0000000000000000000000000000000000000000/docs/screenshots/production.png
-  - https://raw.githubusercontent.com/OWNER/hermes-flower-shop/0000000000000000000000000000000000000000/docs/screenshots/shop-floor-3d.png
-  - https://raw.githubusercontent.com/OWNER/hermes-flower-shop/0000000000000000000000000000000000000000/docs/screenshots/approval-card.png
+  - https://raw.githubusercontent.com/k-reeeee/hermes-flower-shop/0000000000000000000000000000000000000000/docs/screenshots/overview.png
+  - https://raw.githubusercontent.com/k-reeeee/hermes-flower-shop/0000000000000000000000000000000000000000/docs/screenshots/orders.png
+  - https://raw.githubusercontent.com/k-reeeee/hermes-flower-shop/0000000000000000000000000000000000000000/docs/screenshots/production.png
+  - https://raw.githubusercontent.com/k-reeeee/hermes-flower-shop/0000000000000000000000000000000000000000/docs/screenshots/shop-floor-3d.png
+  - https://raw.githubusercontent.com/k-reeeee/hermes-flower-shop/0000000000000000000000000000000000000000/docs/screenshots/approval-card.png
 readme: true
 platforms: []
 onboarding: false
