@@ -42,7 +42,7 @@ chat relay is setting-gated and must quote the owner's exact words.
 
 ## Capabilities (rule 6)
 
-The entry declares the 31 `flowershop_*` tools as `provides_tools`, with empty
+The entry declares all 39 `flowershop_*` tools as `provides_tools`, with empty
 `provides_hooks`, `provides_middleware` and `requires_env` — matching what
 `register()` actually registers at the pinned commit. Money is integer minor
 units plus an ISO currency, never floats.
