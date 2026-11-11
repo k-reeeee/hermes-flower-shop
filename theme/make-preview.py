@@ -31,9 +31,9 @@ except ImportError:  # pragma: no cover
 
 HERE = Path(__file__).resolve().parent
 CHROME = next(
-    (c for c in ("/home/openclaw/.local/bin/google-chrome",
-                 "/usr/bin/google-chrome", "/usr/bin/chromium-browser",
-                 shutil.which("google-chrome") or "", shutil.which("chromium") or "")
+    (c for c in (shutil.which("google-chrome") or "", shutil.which("chromium") or "",
+                 shutil.which("chromium-browser") or "",
+                 "/usr/bin/google-chrome", "/usr/bin/chromium-browser")
      if c and Path(c).exists()),
     "",
 )

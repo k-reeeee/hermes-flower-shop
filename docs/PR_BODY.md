@@ -49,19 +49,48 @@ units plus an ISO currency, never floats.
 
 ## Admission checks (rules 7–9, 17)
 
-`hermes plugins validate .` on the pinned tree, run locally:
+`hermes plugins validate .` on the pinned tree, run locally — pasted verbatim,
+warning included:
 
 ```
-✓ manifest · ✓ manifest fields · ✓ requires_hermes · ✓ config schema
-✓ requires_env · ✓ oauth (not declared) · ✓ loadable
-✓ python dependencies (none declared) · ✓ capability probe
-✓ declared tools / hooks / middleware — match registrations
+✓ manifest — plugin.yaml parses
+✓ manifest fields — name, version, description present
+✓ requires_hermes — spec '>=0.22.0' parses
+✓ config schema — shape valid
+✓ requires_env — all entries UPPER_SNAKE
+✓ oauth — not declared
+✓ loadable — entry: __init__.py, desktop/plugin.js
+✓ python dependencies — none declared
+✓ capability probe — register() ran in isolation
+✓ declared tools — matches registrations
+✓ declared hooks — matches registrations
+✓ declared middleware — matches registrations
 ✓ built-in tool collisions — no collisions
 ✓ security scan — safe
 ✓ no core override — no runtime rebinds of Hermes core
 ✓ desktop surface — stays inside the plugin SDK surface
+⚠ private core imports (catalog rule 9: public surfaces only; these can break on
+any release): flowershop_core/tools/handlers.py:201 hermes_cli.profiles. Use
+ctx.* / documented plugin APIs, or open an issue for the seam you need.
 Validation passed.
 ```
+
+The single warning is **disclosed rather than hidden**. Rule 9's refusal covers
+*replacing, wrapping or rebinding* core functions, methods, module attributes or
+private dicts — this plugin does none of that, and the `no core override` check
+passes. The flagged line is a **lazy import inside the handler**
+(`from hermes_cli import profiles as _profiles`), so `flowershop_core` stays
+Hermes-free at module level, and it is used for one thing: the onboarding
+**bots** step calls the documented-argument
+`hermes_cli.profiles.create_profile(name=..., description=..., no_skills=True,
+no_alias=True)` to create a real Hermes profile per department agent. It reads
+and creates; it patches nothing. If the import fails, the tool returns a typed
+`profile_create_failed` error instead of raising, and the step records nothing.
+
+There is no public plugin API for creating a profile, which is why the seam is
+there. **Maintainers:** if you would rather the entry carry no core import at
+all, say so in review and the bots step will degrade to recording the owner's
+choice without creating profiles — no other behaviour depends on it.
 
 Dependencies: **none** beyond the stdlib and Hermes itself — `sqlite3`, numbered
 SQL migrations, `BEGIN IMMEDIATE` for reservations (rule 10 has nothing to
