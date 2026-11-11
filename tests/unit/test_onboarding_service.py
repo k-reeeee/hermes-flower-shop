@@ -105,3 +105,35 @@ def test_state_merges_profile(store):
     profile.update(store, {"business_name": "Mawar Putih", "business_type": "florist"})
     st = onboarding.state(store)
     assert st["profile"]["business_name"] == "Mawar Putih"
+
+
+def test_reset_clears_answers_keeps_business_data(store):
+    # Complete the flow so there is something to wipe.
+    onboarding.answer(store, "needs", ["Orders & customers", "Delivery"])
+    onboarding.answer(store, "team", ["sales", "logistics"])
+    onboarding.answer(store, "bots", [{"name": "Sales assistant", "profile": "flower-shop-sales"}])
+    onboarding.answer(store, "custom", {"needed": False})
+    onboarding.complete(store)
+    profile.update(store, {"business_name": "Mawar Putih"})
+    assert onboarding.state(store)["complete"] is True
+
+    # Seed business records to prove reset does not touch them.
+    from flowershop_core.seed import counts, seed_demo
+    seed_demo(store)
+    before = counts(store)
+    assert before["orders"] > 0  # sanity: there is business data to protect
+
+    st = onboarding.reset(store)
+    assert st["complete"] is False
+    assert st["needs"] == []
+    assert st["fit"] == {}
+    assert st["bots"] == []
+    assert st["custom_plugin"] == {}
+    assert all(not s["done"] for s in st["steps"])
+    assert st["current_step"] == "welcome"
+
+    # Business records survive.
+    after = counts(store)
+    assert after == before
+    # Profile business name survives too.
+    assert onboarding.state(store)["profile"]["business_name"] == "Mawar Putih"

@@ -239,3 +239,21 @@ def complete(s: Store, actor: str = "owner") -> dict:
         t.audit("onboarding", None, "completed", actor)
     st = state(s)
     return {"complete": st["complete"], "next": None if st["complete"] else st["current_step"], "state": st}
+
+
+def reset(s: Store, actor: str = "owner") -> dict:
+    """Clear onboarding answers so the flow can be replayed from the start.
+
+    Wipes the 8 beats and the computed columns (``needs``, ``fit``, ``bots``,
+    ``custom_plugin``). Business data (orders, stock, money) is untouched, so a
+    rerun re-answers setup without losing the shop's records.
+    """
+    with s.tx() as t:
+        profile._ensure(t)
+        _save_beats(t, {})
+        _set_column(t, "needs", [])
+        _set_column(t, "fit", {})
+        _set_column(t, "bots", [])
+        _set_column(t, "custom_plugin", {})
+        t.audit("onboarding", None, "reset", actor)
+    return state(s)

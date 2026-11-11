@@ -135,6 +135,11 @@ def complete_onboarding():
     return _run(lambda: onboarding.complete(get_store(), ACTOR))
 
 
+@router.post("/onboarding/reset")
+def reset_onboarding():
+    return _run(lambda: onboarding.reset(get_store(), ACTOR))
+
+
 @router.post("/onboarding/{step}/complete")
 def complete_onboarding_step(step: str, body: dict = Body(default_factory=dict)):
     return _run(lambda: profile.complete_step(get_store(), step, body or {}, ACTOR))

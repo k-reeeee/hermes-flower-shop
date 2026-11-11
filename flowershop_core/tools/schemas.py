@@ -27,6 +27,7 @@ DEFAULT_DEPARTMENTS = {
     "flowershop_assess_fit": "manager",
     "flowershop_recommend_team": "manager",
     "flowershop_create_bot": "manager",
+    "flowershop_reset_onboarding": "manager",
     "flowershop_list_orders": "sales",
     "flowershop_get_order": "sales",
     "flowershop_create_order_draft": "sales",
@@ -175,6 +176,14 @@ SCHEMAS: dict[str, dict] = {
                                                "required": ["name", "profile"]}},
             "department": _dept("manager"),
         }, "required": ["bots"]},
+    },
+    "flowershop_reset_onboarding": {
+        "name": "flowershop_reset_onboarding",
+        "description": "Clear all onboarding answers so setup can be replayed from the start. Wipes the 8 "
+                       "beats and the needs/fit/bots/custom-plugin answers. Business data (orders, stock, "
+                       "money) is untouched. Returns the full reset state. Use when the owner wants to "
+                       "start the setup flow over.",
+        "parameters": {"type": "object", "properties": {"department": _dept("manager")}},
     },
     "flowershop_list_orders": {
         "name": "flowershop_list_orders",
@@ -520,6 +529,7 @@ TOOL_NAMES = [
     "flowershop_assess_fit",
     "flowershop_recommend_team",
     "flowershop_create_bot",
+    "flowershop_reset_onboarding",
     "flowershop_list_orders",
     "flowershop_get_order",
     "flowershop_create_order_draft",

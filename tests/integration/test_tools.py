@@ -38,7 +38,7 @@ def test_every_tool_returns_json_and_never_raises(store, name, schema, handler):
 
 def test_tool_schema_names_and_departments_valid(store):
     names = [n for n, _, _ in TOOLS]
-    assert len(names) == len(set(names)) == 36
+    assert len(names) == len(set(names)) == 37
     for n, schema, _ in TOOLS:
         assert schema["name"] == n
         assert "description" in schema

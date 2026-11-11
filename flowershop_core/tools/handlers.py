@@ -181,15 +181,62 @@ def flowershop_recommend_team(args: dict, **kwargs) -> str:
 
 
 def flowershop_create_bot(args: dict, **kwargs) -> str:
+    """Create real Hermes profiles for each chosen bot, then record the choice.
+
+    Profile creation is lazy-imported inside the handler so ``flowershop_core``
+    stays Hermes-free at module level. If any profile fails to create, nothing is
+    recorded and the tool returns ``profile_create_failed``.
+    """
     s = get_store()
+    actor = _actor(args, "flowershop_create_bot")
+    bots = (args or {}).get("bots")
+    if not isinstance(bots, list):
+        return _err(error="validation_error", message="bots must be a list of {name, profile}",
+                    field="bots")
+    for bot in bots:
+        if not isinstance(bot, dict) or not bot.get("name") or not bot.get("profile"):
+            return _err(error="validation_error",
+                        message="Each bot must have name and profile", field="bots")
     try:
-        bots = (args or {}).get("bots")
-        return _ok(state=onboarding.answer(s, "bots", bots,
-                                           _actor(args, "flowershop_create_bot")))
+        from hermes_cli import profiles as _profiles  # lazy: keep core Hermes-free
+    except Exception as e:  # noqa: BLE001
+        log.exception("hermes_cli import failed (flowershop_create_bot)")
+        return _err(error="profile_create_failed",
+                    message="Could not load Hermes profile tooling: " + str(e))
+    created = []
+    for bot in bots:
+        try:
+            path = _profiles.create_profile(
+                name=bot["name"],
+                description=bot.get("description") or bot.get("purpose"),
+                no_skills=True,
+                no_alias=True,
+            )
+            created.append({"name": bot["name"], "profile": bot["profile"],
+                            "profile_path": str(path)})
+        except Exception as e:  # noqa: BLE001
+            log.exception("profile creation failed for %s", bot.get("name"))
+            return _err(error="profile_create_failed",
+                        message=f"Could not create profile for {bot.get('name')!r}: {e}")
+    try:
+        st = onboarding.answer(s, "bots", bots, actor)
+        return json.dumps({"ok": True, "created": created, "state": st},
+                          default=str, ensure_ascii=False)
     except FlowerShopError as e:
         return _error(e)
     except Exception as e:  # noqa: BLE001
         log.exception("flowershop_create_bot failed")
+        return _internal(e)
+
+
+def flowershop_reset_onboarding(args: dict, **kwargs) -> str:
+    s = get_store()
+    try:
+        return _ok(state=onboarding.reset(s, _actor(args, "flowershop_reset_onboarding")))
+    except FlowerShopError as e:
+        return _error(e)
+    except Exception as e:  # noqa: BLE001
+        log.exception("flowershop_reset_onboarding failed")
         return _internal(e)
 
 
@@ -473,6 +520,7 @@ HANDLERS: dict[str, object] = {
     "flowershop_assess_fit": flowershop_assess_fit,
     "flowershop_recommend_team": flowershop_recommend_team,
     "flowershop_create_bot": flowershop_create_bot,
+    "flowershop_reset_onboarding": flowershop_reset_onboarding,
     "flowershop_list_orders": flowershop_list_orders,
     "flowershop_get_order": flowershop_get_order,
     "flowershop_create_order_draft": flowershop_create_order_draft,
