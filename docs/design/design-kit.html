@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flower Shop - Design Kit v1</title>
+<style>
+  :root { --bg:#14181d; --t1:#e4e6ea; --t2:#aab0ba; --t3:#7d8591; --t4:#5c636e; --line:#2f353e; --fill:#20252c;
+    --ok:#5fbf8a; --warn:#e0b04c; --bad:#e5706d; --accent:#8fb2e8; --rose:#E07A93; --leaf:#6FB07A; --kraft:#D8B98D; }
+  * { box-sizing: border-box }
+  body { margin:0; background:var(--bg); color:var(--t1); font:13px/1.5 -apple-system,"Segoe UI",Inter,system-ui,sans-serif }
+  main { max-width:1080px; margin:0 auto; padding:32px 20px 60px }
+  h1 { font-size:24px; margin:0 0 4px; font-weight:650; display:flex; gap:10px; align-items:center }
+  h2 { font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--t3); margin:36px 0 12px }
+  p { color:var(--t2); max-width:70ch; margin:4px 0 }
+  .grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr)) }
+  .card { border:1px solid var(--line); border-radius:12px; background:color-mix(in srgb,var(--fill) 35%,transparent); padding:14px }
+  .sw { height:56px; border-radius:8px; margin-bottom:8px; border:1px solid rgba(255,255,255,.06) }
+  .lbl { font-size:12px; font-weight:600 } .sub { font-size:11px; color:var(--t3); font-family:ui-monospace,monospace }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+  .ty div { padding:8px 0; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px; align-items:baseline }
+  .chip { display:inline-flex; gap:6px; align-items:center; height:22px; padding:0 8px; border-radius:999px; background:color-mix(in srgb,var(--fill) 60%,transparent); font-size:11px; color:var(--t2) }
+  .dot { width:8px; height:8px; border-radius:999px; display:inline-block }
+  .kpi { border:1px solid var(--line); border-radius:12px; padding:12px 14px }
+  .ov { font-size:10.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--t3) }
+  .kv { font-size:24px; font-weight:650; font-variant-numeric:tabular-nums }
+  .meter { height:8px; border-radius:999px; background:var(--fill); overflow:hidden } .meter i { display:block; height:100%; border-radius:999px }
+  .flow { display:grid; grid-template-columns:repeat(6,1fr); position:relative; gap:6px; text-align:center }
+  .flow:before { content:""; position:absolute; left:8%; right:8%; top:20px; height:4px; border-radius:4px; background:linear-gradient(90deg,#B9A6E8,#F2B97E,#F09AAE,#8FD3AE,#93C3EC,#7CCBC0); opacity:.85 }
+  .node { width:44px; height:44px; border-radius:999px; margin:0 auto 6px; display:grid; place-items:center; font-weight:700; border:2px solid; position:relative; background:var(--bg) }
+  .motion div { display:flex; justify-content:space-between; padding:8px 0; border-top:1px solid var(--line) }
+  .demo { width:22px; height:22px; border-radius:6px; background:var(--rose); animation:pop 900ms cubic-bezier(.34,1.56,.64,1) both }
+  @keyframes pop { 0%,30% { transform:scale(.6); opacity:.4 } 60%,100% { transform:scale(1); opacity:1 } }
+  table { width:100%; border-collapse:collapse } td,th { text-align:left; padding:6px 8px; border-top:1px solid var(--line); font-size:12px } th { color:var(--t3); font-weight:500 }
+  @media (prefers-reduced-motion: reduce) { .demo { animation:none } }
+</style>
+</head>
+<body>
+<main>
+  <h1><svg width="26" height="26" viewBox="0 0 24 24"><g fill="#E07A93"><ellipse cx="12" cy="6.6" rx="3.6" ry="5.2"/><ellipse cx="12" cy="6.6" rx="3.6" ry="5.2" transform="rotate(72 12 12)"/><ellipse cx="12" cy="6.6" rx="3.6" ry="5.2" transform="rotate(144 12 12)"/><ellipse cx="12" cy="6.6" rx="3.6" ry="5.2" transform="rotate(216 12 12)"/><ellipse cx="12" cy="6.6" rx="3.6" ry="5.2" transform="rotate(288 12 12)"/></g><circle cx="12" cy="12" r="3" fill="#F3C444"/></svg> Flower Shop - Design Kit v1</h1>
+  <p>Calm graphite surfaces from the Hermes theme, one brand rose, semantic colour only where action is needed. Answer first, detail second. Full spec: <code>docs/design/DESIGN_KIT.md</code>; code: <code>desktop/src/lib/tokens.js</code> + <code>styles.js</code>.</p>
+
+  <h2>Brand</h2>
+  <div class="grid">
+    <div class="card"><div class="sw" style="background:#E07A93"></div><div class="lbl">Rose (brand)</div><div class="sub">#E07A93</div></div>
+    <div class="card"><div class="sw" style="background:#6FB07A"></div><div class="lbl">Leaf</div><div class="sub">#6FB07A - done / paid</div></div>
+    <div class="card"><div class="sw" style="background:#D8B98D"></div><div class="lbl">Kraft</div><div class="sub">#D8B98D - expenses</div></div>
+    <div class="card"><div class="sw" style="background:#F3C444"></div><div class="lbl">Yolk</div><div class="sub">#F3C444 - bloom centre</div></div>
+  </div>
+
+  <h2>Stations (categorical - same hue in 2D and 3D)</h2>
+  <div class="grid">
+    <div class="card"><div class="sw" style="background:#B9A6E8"></div><div class="lbl">Incoming</div><div class="sub">#B9A6E8 - mail</div></div>
+    <div class="card"><div class="sw" style="background:#F2B97E"></div><div class="lbl">Prep</div><div class="sub">#F2B97E - beaker</div></div>
+    <div class="card"><div class="sw" style="background:#F09AAE"></div><div class="lbl">Assembly</div><div class="sub">#F09AAE - heart</div></div>
+    <div class="card"><div class="sw" style="background:#8FD3AE"></div><div class="lbl">Quality</div><div class="sub">#8FD3AE - pass</div></div>
+    <div class="card"><div class="sw" style="background:#93C3EC"></div><div class="lbl">Packing</div><div class="sub">#93C3EC - package</div></div>
+    <div class="card"><div class="sw" style="background:#7CCBC0"></div><div class="lbl">Delivery</div><div class="sub">#7CCBC0 - rocket</div></div>
+  </div>
+
+  <h2>State - always colour + word</h2>
+  <div class="row">
+    <span class="chip"><span class="dot" style="background:var(--bad)"></span>Late</span>
+    <span class="chip"><span class="dot" style="background:var(--warn)"></span>Needs you / due within 3h</span>
+    <span class="chip"><span class="dot" style="background:var(--rose)"></span>On track</span>
+    <span class="chip"><span class="dot" style="background:var(--leaf)"></span>Ready / on the way</span>
+    <span class="chip"><span class="dot" style="background:var(--ok)"></span>Done</span>
+  </div>
+
+  <h2>Typography</h2>
+  <div class="card ty">
+    <div><span style="font-size:28px;font-weight:650">Rp3.230.000</span><span class="sub">Display 28/650</span></div>
+    <div><span style="font-size:20px;font-weight:600">Good afternoon, Toko Bunga Melati</span><span class="sub">Title 20/600</span></div>
+    <div><span style="font-size:15px;font-weight:600">Shop Floor</span><span class="sub">Heading 15/600</span></div>
+    <div><span style="font-size:12px;font-weight:600;color:var(--t2)">Needs you</span><span class="sub">Section 12/600</span></div>
+    <div><span>5 orders due today - 2 are late.</span><span class="sub">Body 13/400</span></div>
+    <div><span class="ov">Paid today</span><span class="sub">Overline 10.5/600 caps</span></div>
+  </div>
+
+  <h2>Components</h2>
+  <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr))">
+    <div class="kpi"><div class="ov">Due today</div><div class="kv">5</div><div class="sub" style="font-family:inherit">orders</div></div>
+    <div class="kpi"><div class="ov">Late</div><div class="kv" style="color:var(--bad)">2</div><div class="sub" style="font-family:inherit">need action</div></div>
+    <div class="kpi"><div class="ov">Paid today</div><div class="kv">Rp400.000</div><div class="meter" style="margin-top:8px"><i style="width:12%;background:var(--leaf)"></i></div></div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <div class="ov" style="margin-bottom:12px">Flow strip</div>
+    <div class="flow">
+      <div><div class="node" style="border-color:#B9A6E8">2</div><span class="sub" style="font-family:inherit">Incoming</span></div>
+      <div><div class="node" style="border-color:#F2B97E">1</div><span class="sub" style="font-family:inherit">Prep</span></div>
+      <div><div class="node" style="border-color:#F09AAE">1</div><span class="sub" style="font-family:inherit">Assembly</span></div>
+      <div><div class="node" style="border-color:#8FD3AE;border-style:dashed;color:var(--t4)">0</div><span class="sub" style="font-family:inherit">Quality</span></div>
+      <div><div class="node" style="border-color:#93C3EC">1</div><span class="sub" style="font-family:inherit">Packing</span></div>
+      <div><div class="node" style="border-color:#7CCBC0">1</div><span class="sub" style="font-family:inherit">Delivery</span></div>
+    </div>
+  </div>
+
+  <h2>Space, radius, layout</h2>
+  <table>
+    <tr><th>Token</th><th>Value</th></tr>
+    <tr><td>Spacing (4-pt)</td><td>2 4 8 12 16 20 24 32 40 - page pad 20 / 16 / 12</td></tr>
+    <tr><td>Radius</td><td>chip 999 - control 6 - card 12 - hero 16 - 3D frame 14</td></tr>
+    <tr><td>Breakpoints (pane width, container queries)</td><td>compact &lt;600 - medium 600-959 - wide &ge;960 - xl &ge;1280</td></tr>
+    <tr><td>Hit targets</td><td>32 px; 40 px on touch (pointer: coarse)</td></tr>
+  </table>
+
+  <h2>Motion</h2>
+  <div class="card motion">
+    <div><span>d1 120ms - hover / press</span><span class="sub">cubic-bezier(.2,.8,.2,1)</span></div>
+    <div><span>d2 220ms - state change</span><span class="sub">ease-out</span></div>
+    <div><span>d3 420ms - entrance fade-up, 40ms stagger, once per mount</span><span class="sub">ease-out</span></div>
+    <div><span class="row">d4 900ms - count-up, bloom petals <span class="demo"></span></span><span class="sub">cubic-bezier(.34,1.56,.64,1)</span></div>
+    <div><span>No loops on chrome or titles; polls never flash; reduced-motion = off</span><span class="sub">rule</span></div>
+  </div>
+
+  <h2>3D Shop Floor</h2>
+  <p>three.js, low-poly flat-shaded floating garden island; hemisphere + warm key + soft PCF shadows + ACES. Static scenery baked to shared vertex-colour materials (~140 draw calls desktop / ~85 phone). Canvas2D fallback when WebGL is unavailable. Bouquet = live order; selected = rose ring + beacon; late = red ring + beacon.</p>
+</main>
+</body>
+</html>
