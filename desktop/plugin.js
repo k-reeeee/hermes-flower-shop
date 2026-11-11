@@ -34720,6 +34720,43 @@ function ReplayControl({ q }) {
     h(Muted, null, "Reopens the onboarding chat")
   );
 }
+function SetUpAgainControl() {
+  const [busy, setBusy] = useState15(false);
+  const [confirm, setConfirm] = useState15(false);
+  const run = async () => {
+    setBusy(true);
+    try {
+      await rest("/onboarding/reset", { method: "POST" });
+    } catch (e) {
+      setBusy(false);
+      setConfirm(false);
+      toast("error", "Could not reset onboarding: " + (e && e.message || "request failed"));
+      return;
+    }
+    const ok = await openWelcomeChat();
+    setBusy(false);
+    setConfirm(false);
+    if (ok) toast("success", "Onboarding reset - starting over");
+  };
+  return h(
+    "div",
+    { className: "fs-btnrow", style: { justifyContent: "space-between", alignItems: "center" } },
+    h(Muted, null, "Replay the setup flow from the start."),
+    h(
+      "div",
+      { style: { display: "flex", alignItems: "center", gap: 8 } },
+      h(Button13, { variant: "outline", size: "sm", disabled: busy, onClick: () => setConfirm(true) }, busy ? "Resetting" : "Set up again")
+    ),
+    confirm ? h(Confirm, {
+      open: true,
+      onClose: () => setConfirm(false),
+      title: "Set up again?",
+      description: "This discards your onboarding answers (needs, fit, team, bots) and starts the setup flow over. Your business records - orders, stock and money - are kept.",
+      confirmLabel: "Set up again",
+      onConfirm: run
+    }) : null
+  );
+}
 function WelcomePage() {
   const q = useApi(["onboarding"], "/onboarding", { interval: 2e4 });
   const [busy, setBusy] = useState15(false);
@@ -34736,6 +34773,7 @@ function WelcomePage() {
     q.data === void 0 ? h(SkeletonBlock, { rows: 4, height: 110 }) : h(
       "div",
       { className: "fs-page-stack", style: { gap: 14 } },
+      h(SetUpAgainControl, null),
       complete ? h(Callout, { icon: "check", tone: "ok" }, h("strong", { style: { color: C.t1 } }, "You\\u2019re set up. "), "Flower Shop is ready for your business. Replay the Welcome chat any time, or edit the details below.") : h(WelcomeCta, { q, busy, onBegin: begin }),
       h(Card, { title: "Your business", right: h(ReplayControl, { q }) }, h(Q, { q, skeleton: h(SkeletonBlock, { rows: 2, height: 40 }) }, (d) => h(ProfileEditor, { data: d }))),
       h(Card, { title: "What you need help with" }, h(Q, { q, skeleton: h(SkeletonBlock, { rows: 3, height: 34 }) }, (d) => h(NeedsEditor, { data: d }))),

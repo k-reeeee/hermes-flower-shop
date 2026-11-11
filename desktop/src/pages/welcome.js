@@ -224,6 +224,45 @@ function ReplayControl({ q }) {
   )
 }
 
+// "Set up again": wipe onboarding answers (business records kept) and replay the
+// Welcome chat from the start. Always visible so a completed setup can be rerun.
+function SetUpAgainControl() {
+  const [busy, setBusy] = useState(false)
+  const [confirm, setConfirm] = useState(false)
+  const run = async () => {
+    setBusy(true)
+    try {
+      await rest('/onboarding/reset', { method: 'POST' })
+    } catch (e) {
+      setBusy(false)
+      setConfirm(false)
+      toast('error', 'Could not reset onboarding: ' + ((e && e.message) || 'request failed'))
+      return
+    }
+    // openWelcomeChat marks beat 1 done, mints the Welcome chat, submits the
+    // opening prompt and opens the session - the same flow as the first run.
+    const ok = await openWelcomeChat()
+    setBusy(false)
+    setConfirm(false)
+    if (ok) toast('success', 'Onboarding reset - starting over')
+  }
+  return h(
+    'div',
+    { className: 'fs-btnrow', style: { justifyContent: 'space-between', alignItems: 'center' } },
+    h(Muted, null, 'Replay the setup flow from the start.'),
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+      h(Button, { variant: 'outline', size: 'sm', disabled: busy, onClick: () => setConfirm(true) }, busy ? 'Resetting' : 'Set up again')),
+    confirm ? h(Confirm, {
+      open: true,
+      onClose: () => setConfirm(false),
+      title: 'Set up again?',
+      description: 'This discards your onboarding answers (needs, fit, team, bots) and starts the setup flow over. Your business records - orders, stock and money - are kept.',
+      confirmLabel: 'Set up again',
+      onConfirm: run
+    }) : null
+  )
+}
+
 export function WelcomePage() {
   const q = useApi(['onboarding'], '/onboarding', { interval: 20000 })
   const [busy, setBusy] = useState(false)
@@ -243,6 +282,7 @@ export function WelcomePage() {
       : h(
           'div',
           { className: 'fs-page-stack', style: { gap: 14 } },
+          h(SetUpAgainControl, null),
           complete
             ? h(Callout, { icon: 'check', tone: 'ok' }, h('strong', { style: { color: C.t1 } }, 'You\\u2019re set up. '), 'Flower Shop is ready for your business. Replay the Welcome chat any time, or edit the details below.') 
             : h(WelcomeCta, { q, busy, onBegin: begin }),
