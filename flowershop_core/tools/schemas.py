@@ -22,6 +22,11 @@ DEFAULT_DEPARTMENTS = {
     "flowershop_get_briefing": "manager",
     "flowershop_get_business_profile": "manager",
     "flowershop_update_business_profile": "manager",
+    "flowershop_get_onboarding": "manager",
+    "flowershop_answer_onboarding": "manager",
+    "flowershop_assess_fit": "manager",
+    "flowershop_recommend_team": "manager",
+    "flowershop_create_bot": "manager",
     "flowershop_list_orders": "sales",
     "flowershop_get_order": "sales",
     "flowershop_create_order_draft": "sales",
@@ -108,6 +113,68 @@ SCHEMAS: dict[str, dict] = {
             "enabled_departments": {"type": "array", "items": {"type": "string", "enum": DEPARTMENTS}},
             "department": _dept("manager"),
         }},
+    },
+    "flowershop_get_onboarding": {
+        "name": "flowershop_get_onboarding",
+        "description": "Return the full business-onboarding state: profile, needs, fit, bots, custom_plugin, "
+                       "the 8 beats with their done/answer, and whether onboarding is complete. "
+                       "Read this before or while walking the owner through setup.",
+        "parameters": {"type": "object", "properties": {"department": _dept("manager")}},
+    },
+    "flowershop_answer_onboarding": {
+        "name": "flowershop_answer_onboarding",
+        "description": "Record the owner's answer to one onboarding beat. Beat is one of: welcome, business, "
+                       "needs, fit, team, bots, custom, first_result. Use 'needs' when the owner picks the "
+                       "multi-select needs card (a list of needs), 'team' for the department toggles (a list "
+                       "of departments), 'bots' for the bot choices (a list of {name, profile}), 'custom' for "
+                       "the custom-plugin assessment (a dict). Returns the full updated state. "
+                       "Consequential actions still require owner approval.",
+        "parameters": {"type": "object", "properties": {
+            "beat": {"type": "string", "enum": ["welcome", "business", "needs", "fit", "team", "bots",
+                                                "custom", "first_result"]},
+            "answer": {"type": ["string", "array", "object", "null"],
+                       "description": "The owner's answer for this beat."},
+            "department": _dept("manager"),
+        }, "required": ["beat"]},
+    },
+    "flowershop_assess_fit": {
+        "name": "flowershop_assess_fit",
+        "description": "Evaluate how well Flower Shop covers the business from its type and needs: "
+                       "{covered, gaps, assessment}, plus a custom-plugin assessment {needed, reasons, offer}. "
+                       "Read this for beat 7 before deciding whether the owner needs a custom plugin. "
+                       "Deterministic; does not write.",
+        "parameters": {"type": "object", "properties": {
+            "business_type": {"type": "string", "description": "business_type from the profile (e.g. florist, bakery)."},
+            "needs": {"type": "array", "items": {"type": "string"},
+                      "description": "The owner's selected needs."},
+            "department": _dept("manager"),
+        }},
+    },
+    "flowershop_recommend_team": {
+        "name": "flowershop_recommend_team",
+        "description": "Given the owner's needs, return the recommended departments (sales, inventory, "
+                       "production, finance, logistics) for the AI team. Use for beat 5 to pre-check the "
+                       "team card from the chosen needs.",
+        "parameters": {"type": "object", "properties": {
+            "needs": {"type": "array", "items": {"type": "string"},
+                      "description": "The owner's selected needs."},
+            "department": _dept("manager"),
+        }},
+    },
+    "flowershop_create_bot": {
+        "name": "flowershop_create_bot",
+        "description": "Record a bot profile the owner chose for the business (beat 6). Provide bots as a list "
+                       "of {name, profile}: one business assistant (profile flower-shop-manager with all "
+                       "department skills) or one per department (flower-shop-<department>). This records the "
+                       "choice and persists it to the business profile; actual profile creation and any "
+                       "consequential action still requires owner approval.",
+        "parameters": {"type": "object", "properties": {
+            "bots": {"type": "array", "items": {"type": "object",
+                                               "properties": {"name": {"type": "string"},
+                                                              "profile": {"type": "string"}},
+                                               "required": ["name", "profile"]}},
+            "department": _dept("manager"),
+        }, "required": ["bots"]},
     },
     "flowershop_list_orders": {
         "name": "flowershop_list_orders",
@@ -448,6 +515,11 @@ TOOL_NAMES = [
     "flowershop_get_briefing",
     "flowershop_get_business_profile",
     "flowershop_update_business_profile",
+    "flowershop_get_onboarding",
+    "flowershop_answer_onboarding",
+    "flowershop_assess_fit",
+    "flowershop_recommend_team",
+    "flowershop_create_bot",
     "flowershop_list_orders",
     "flowershop_get_order",
     "flowershop_create_order_draft",

@@ -14,7 +14,7 @@ import logging
 
 from .. import get_store
 from ..errors import FlowerShopError, InsufficientStock
-from ..services import approvals, delivery, finance, insights, inventory, orders, production, profile, studio
+from ..services import approvals, delivery, finance, insights, inventory, onboarding, orders, production, profile, studio
 from .schemas import DEFAULT_DEPARTMENTS
 
 log = logging.getLogger(__name__)
@@ -122,6 +122,75 @@ def flowershop_update_business_profile(args: dict, **kwargs) -> str:
     s = get_store()
     data = {k: v for k, v in list(args.items()) if k != "department"}
     return _wrap(lambda: profile.update(s, data, _actor(args, "flowershop_update_business_profile")), "profile")
+
+
+def flowershop_get_onboarding(args: dict, **kwargs) -> str:
+    s = get_store()
+    try:
+        return _ok(state=onboarding.state(s))
+    except FlowerShopError as e:
+        return _error(e)
+    except Exception as e:  # noqa: BLE001
+        log.exception("flowershop_get_onboarding failed")
+        return _internal(e)
+
+
+def flowershop_answer_onboarding(args: dict, **kwargs) -> str:
+    s = get_store()
+    try:
+        return _ok(state=onboarding.answer(s, (args or {}).get("beat"),
+                                           (args or {}).get("answer"),
+                                           _actor(args, "flowershop_answer_onboarding")))
+    except FlowerShopError as e:
+        return _error(e)
+    except Exception as e:  # noqa: BLE001
+        log.exception("flowershop_answer_onboarding failed")
+        return _internal(e)
+
+
+def flowershop_assess_fit(args: dict, **kwargs) -> str:
+    s = get_store()
+    try:
+        profile_p = profile.get(s)
+        business_type = (args or {}).get("business_type") or profile_p["business_type"]
+        needs = (args or {}).get("needs")
+        if needs is None:
+            needs = profile_p["needs"]
+        fit = onboarding.assess_fit(business_type, needs)
+        custom = onboarding.assess_custom(business_type, needs, fit)
+        return _ok(business_type=business_type, needs=needs, fit=fit, custom_plugin=custom)
+    except FlowerShopError as e:
+        return _error(e)
+    except Exception as e:  # noqa: BLE001
+        log.exception("flowershop_assess_fit failed")
+        return _internal(e)
+
+
+def flowershop_recommend_team(args: dict, **kwargs) -> str:
+    s = get_store()
+    try:
+        needs = (args or {}).get("needs")
+        if needs is None:
+            needs = profile.get(s)["needs"]
+        return _ok(departments=onboarding.recommend_team(needs))
+    except FlowerShopError as e:
+        return _error(e)
+    except Exception as e:  # noqa: BLE001
+        log.exception("flowershop_recommend_team failed")
+        return _internal(e)
+
+
+def flowershop_create_bot(args: dict, **kwargs) -> str:
+    s = get_store()
+    try:
+        bots = (args or {}).get("bots")
+        return _ok(state=onboarding.answer(s, "bots", bots,
+                                           _actor(args, "flowershop_create_bot")))
+    except FlowerShopError as e:
+        return _error(e)
+    except Exception as e:  # noqa: BLE001
+        log.exception("flowershop_create_bot failed")
+        return _internal(e)
 
 
 def flowershop_list_orders(args: dict, **kwargs) -> str:
@@ -399,6 +468,11 @@ HANDLERS: dict[str, object] = {
     "flowershop_get_briefing": flowershop_get_briefing,
     "flowershop_get_business_profile": flowershop_get_business_profile,
     "flowershop_update_business_profile": flowershop_update_business_profile,
+    "flowershop_get_onboarding": flowershop_get_onboarding,
+    "flowershop_answer_onboarding": flowershop_answer_onboarding,
+    "flowershop_assess_fit": flowershop_assess_fit,
+    "flowershop_recommend_team": flowershop_recommend_team,
+    "flowershop_create_bot": flowershop_create_bot,
     "flowershop_list_orders": flowershop_list_orders,
     "flowershop_get_order": flowershop_get_order,
     "flowershop_create_order_draft": flowershop_create_order_draft,
