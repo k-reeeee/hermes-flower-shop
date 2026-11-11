@@ -1,0 +1,148 @@
+{
+ "updated_at": "2026-11-11T13:37:40Z",
+ "stations": [
+  {
+   "id": "incoming",
+   "label": "Incoming Orders",
+   "count": 2,
+   "late": 0
+  },
+  {
+   "id": "prep",
+   "label": "Material Prep",
+   "count": 1,
+   "late": 0
+  },
+  {
+   "id": "assembly",
+   "label": "Bouquet Assembly",
+   "count": 1,
+   "late": 0
+  },
+  {
+   "id": "quality",
+   "label": "Quality Check",
+   "count": 1,
+   "late": 1
+  },
+  {
+   "id": "packing",
+   "label": "Packing",
+   "count": 1,
+   "late": 0
+  },
+  {
+   "id": "delivery",
+   "label": "Delivery",
+   "count": 1,
+   "late": 0
+  }
+ ],
+ "orders": [
+  {
+   "id": 5,
+   "order_number": "FS-1005",
+   "station": "quality",
+   "status": "IN_PRODUCTION",
+   "production_status": "QUALITY_CHECK",
+   "is_late": true,
+   "is_due_today": true,
+   "customer_name": "Wedding - Clara & Dimas",
+   "headline": "Sunshine Bouquet x2",
+   "color": "yellow",
+   "requested_delivery_at": "2026-11-11T13:12:40Z",
+   "total_minor": 600000,
+   "currency": "IDR"
+  },
+  {
+   "id": 2,
+   "order_number": "FS-1002",
+   "station": "delivery",
+   "status": "OUT_FOR_DELIVERY",
+   "production_status": "DONE",
+   "is_late": false,
+   "is_due_today": true,
+   "customer_name": "Ibu Ratna",
+   "headline": "Orchid Elegance x1",
+   "color": "white",
+   "requested_delivery_at": "2026-11-11T14:27:40Z",
+   "total_minor": 675000,
+   "currency": "IDR"
+  },
+  {
+   "id": 3,
+   "order_number": "FS-1003",
+   "station": "packing",
+   "status": "READY",
+   "production_status": "DONE",
+   "is_late": false,
+   "is_due_today": true,
+   "customer_name": "Mas Arif",
+   "headline": "Classic Red Dozen x1",
+   "color": "red",
+   "requested_delivery_at": "2026-11-11T16:07:40Z",
+   "total_minor": 375000,
+   "currency": "IDR"
+  },
+  {
+   "id": 4,
+   "order_number": "FS-1004",
+   "station": "assembly",
+   "status": "IN_PRODUCTION",
+   "production_status": "ASSEMBLY",
+   "is_late": false,
+   "is_due_today": false,
+   "customer_name": "Ibu Maya",
+   "headline": "Pastel Garden x1",
+   "color": "pink",
+   "requested_delivery_at": "2026-11-12T02:30:00Z",
+   "total_minor": 450000,
+   "currency": "IDR"
+  },
+  {
+   "id": 6,
+   "order_number": "FS-1006",
+   "station": "prep",
+   "status": "CONFIRMED",
+   "production_status": "QUEUED",
+   "is_late": false,
+   "is_due_today": false,
+   "customer_name": "Bu Lestari",
+   "headline": "Classic Red Dozen x1",
+   "color": "red",
+   "requested_delivery_at": "2026-11-13T03:00:00Z",
+   "total_minor": 375000,
+   "currency": "IDR"
+  },
+  {
+   "id": 7,
+   "order_number": "FS-1007",
+   "station": "incoming",
+   "status": "PENDING_CONFIRMATION",
+   "production_status": null,
+   "is_late": false,
+   "is_due_today": false,
+   "customer_name": "Pak Yusuf",
+   "headline": "Orchid Elegance x1",
+   "color": "white",
+   "requested_delivery_at": "2026-11-13T09:00:00Z",
+   "total_minor": 675000,
+   "currency": "IDR"
+  },
+  {
+   "id": 8,
+   "order_number": "FS-1008",
+   "station": "incoming",
+   "status": "DRAFT",
+   "production_status": null,
+   "is_late": false,
+   "is_due_today": false,
+   "customer_name": "Nadia",
+   "headline": "Pastel Garden x2",
+   "color": "pink",
+   "requested_delivery_at": "2026-11-14T04:00:00Z",
+   "total_minor": 875000,
+   "currency": "IDR"
+  }
+ ]
+}

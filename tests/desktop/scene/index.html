@@ -1,0 +1,33 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Shop Floor harness</title>
+<style>
+  :root { --ui-text-secondary:#d6d6dc; --ui-text-tertiary:#8d8d96; --ui-text-quaternary:#6f6f78; }
+  html,body { margin:0; background:#16171b; color:#ddd; font-family: Inter, system-ui, sans-serif; }
+  #wrap { width:1100px; height:620px; position:relative; }
+  canvas { width:100%; height:100%; display:block; }
+</style></head>
+<body><div id="wrap"><canvas id="c"></canvas></div>
+<script type="module">
+import { createRenderer } from '../../../desktop/src/scene/engine.js'
+const params = new URLSearchParams(location.search)
+const floor = await (await fetch('../../fixtures/floor.real.json')).json()
+const canvas = document.getElementById('c')
+const r = createRenderer(canvas, { reduceMotion: false, solo: params.get('solo') || null, soloScale: Number(params.get('scale') || 3) })
+r.resize(1100, 620, 2)
+r.setTheme({ text: '#d6d6dc', muted: '#8d8d96', font: 'Inter, system-ui, sans-serif', card: 'rgba(18,18,22,0.72)' })
+let t = 0
+r.setFloor(params.get('solo') ? { orders: [], stations: [] } : floor, t)
+const times = []
+for (let i = 0; i < 160; i++) { t += 25; const a = performance.now(); r.frame(t); times.push(performance.now() - a) }
+if (params.get('select')) { r.setSelected(floor.orders[1].id); for (let i = 0; i < 120; i++) { t += 25; r.frame(t) } }
+if (params.get('move')) {   // simulate an order advancing a station: token flies, mascot runs
+  const f2 = JSON.parse(JSON.stringify(floor)); const o = f2.orders.find(x => x.station === 'assembly'); o.station = 'quality'
+  r.setFloor(f2, t); for (let i = 0; i < 30; i++) { t += 25; r.frame(t) }
+}
+if (params.get('yaw')) { r.rotate(Number(params.get('yaw')), 0); t += 25; r.frame(t) }
+times.sort((a, b) => a - b)
+window.__result = { faces: 0, p50: times[80], p95: times[152], tokens: r.state.screenTokens.length,
+  pickFirst: r.state.screenTokens.length ? r.pick(r.state.screenTokens[0].x / 2, (r.state.screenTokens[0].y + 10) / 2) : null,
+  firstId: r.state.screenTokens.length ? r.state.screenTokens[0].id : null }
+document.title = 'done'
+</script></body></html>
