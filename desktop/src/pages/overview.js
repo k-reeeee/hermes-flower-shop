@@ -72,7 +72,7 @@ export function OverviewPage() {
         ),
         h(
           'div',
-          { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 12, alignItems: 'start' } },
+          { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))', gap: 12, alignItems: 'start' } },
           h(Card, { title: 'What needs attention', right: h(Muted, null, d.alerts.length + (d.alerts.length === 1 ? ' item' : ' items')) },
             d.alerts.length
               ? d.alerts.map((a, i) => h('div', { key: i, style: row(8, { alignItems: 'flex-start', padding: '6px 0', borderTop: i ? '1px solid ' + C.line : 'none' }) }, h('div', { style: { paddingTop: 5 } }, h(Dot, { tone: SEV_TONE[a.severity] === 'muted' ? 'muted' : SEV_TONE[a.severity] })), h('div', { style: col(1, { minWidth: 0, flex: 1 }) }, h('div', { style: txt(12.5, C.t1, { fontWeight: 500 }) }, a.title), h('div', { style: txt(11.5, C.t3) }, a.detail)), a.ref ? h(AlertLink, { alert: a }) : null))
@@ -105,4 +105,3 @@ function AlertLink({ alert }) {
   return h(Button, { size: 'xs', variant: 'ghost', onClick: go }, r.label || 'Open')
 }
 
-export { rest }

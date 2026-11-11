@@ -63,4 +63,4 @@ Tag @NousResearch. Keep under 280 characters.
 > Desktop. Agents propose, the owner approves on a live card. One SQLite, no
 > network calls. 75-second demo. #HermesAgent
 
-Character count: 276.
+Character count: 273.

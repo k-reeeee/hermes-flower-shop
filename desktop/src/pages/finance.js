@@ -64,4 +64,3 @@ function CategoryBars({ rows, cur }) {
   return h('div', { style: col(8) }, rows.map(r => h('div', { key: r.category, style: col(3) }, h('div', { style: row(8, { justifyContent: 'space-between' }) }, h('span', { style: txt(12, C.t1) }, humanize(r.category)), h('span', { style: txt(12, C.t2, { fontVariantNumeric: 'tabular-nums' }) }, money(r.amount_minor, cur))), h('div', { style: { height: 6, background: 'var(--ui-bg-tertiary)', borderRadius: 3 } }, h('div', { style: { width: Math.round((r.amount_minor / max) * 100) + '%', height: 6, background: C.t3, borderRadius: 3 } })))))
 }
 
-export { kv }

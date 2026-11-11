@@ -112,4 +112,3 @@ export function ApprovalItem({ approval, compact }) {
   )
 }
 
-export { ApiError, paymentLabel, paymentTone }

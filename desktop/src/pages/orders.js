@@ -85,7 +85,7 @@ export function OrdersPage() {
           )
         )
       ),
-      selected !== null && selected !== undefined ? h('div', { style: { position: 'sticky', top: 0, minWidth: 0 } }, h(OrderPanel, { orderId: selected, onClose: () => selectOrder(null) })) : null
+      selected !== null && selected !== undefined ? h('div', { style: { position: 'sticky', top: 0, minWidth: 0, maxHeight: 'calc(100vh - 150px)', overflowY: 'auto', paddingRight: 2 } }, h(OrderPanel, { orderId: selected, onClose: () => selectOrder(null) })) : null
     ),
     dlg ? h(NewOrderDialog, { onClose: () => setDlg(false) }) : null
   )

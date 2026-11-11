@@ -452,4 +452,3 @@ export function AvailabilityBlock({ data }) {
   )
 }
 
-export { fmtDateTime, rest }

@@ -125,4 +125,3 @@ export function OrderPanel({ orderId, onClose, onOpenPayment }) {
   )
 }
 
-export { Empty, ErrorPanel, deptLabel, qs, rest }

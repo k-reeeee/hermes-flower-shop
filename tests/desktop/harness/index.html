@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<title>Flower Shop render harness</title>
+<script type="importmap">
+{
+  "imports": {
+    "@hermes/plugin-sdk": "/tests/desktop/harness/mock-sdk.js",
+    "react": "https://esm.sh/react@18.3.1",
+    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client"
+  }
+}
+</script>
+<style>
+  /* Approximation of a calm graphite Hermes theme: only the vars the plugin uses. */
+  :root {
+    --ui-text-primary: #e4e6ea; --ui-text-secondary: #aab0ba; --ui-text-tertiary: #7d8591; --ui-text-quaternary: #5c636e;
+    --ui-stroke-secondary: #2f353e; --ui-accent: #8fb2e8; --ui-green: #5fbf8a; --ui-yellow: #e0b04c; --ui-red: #e5706d;
+    --ui-bg-tertiary: #20252c; --ui-bg-quaternary: #282e36; --ui-bg-primary: #14181d; --ui-bg-chrome: #171b21;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #14181d; color: var(--ui-text-primary);
+    font: 13px/1.45 -apple-system, "Segoe UI", Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  #app { display: grid; grid-template-columns: 210px 1fr; grid-template-rows: 1fr 26px; height: 100vh; }
+  #side { grid-row: 1 / 3; background: #101419; border-right: 1px solid var(--ui-stroke-secondary); padding: 14px 10px; color: var(--ui-text-tertiary); font-size: 12px; }
+  #side .row { padding: 5px 8px; border-radius: 5px; margin-bottom: 2px; }
+  #side .row.on { background: #20252c; color: var(--ui-text-primary); }
+  #main { min-height: 0; min-width: 0; overflow: hidden; }
+  #status { grid-column: 2; display: flex; justify-content: flex-end; align-items: center; border-top: 1px solid var(--ui-stroke-secondary); background: var(--ui-bg-chrome); color: var(--ui-text-tertiary); font-size: 11px; padding: 0 8px; gap: 8px; }
+  .mock-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: grid; place-items: center; z-index: 50; }
+  .mock-dialog { background: #1b2027; border: 1px solid var(--ui-stroke-secondary); border-radius: 10px; padding: 16px; max-height: 85vh; overflow: auto; width: 520px; }
+  #toasts { position: fixed; right: 16px; bottom: 40px; display: grid; gap: 6px; z-index: 60; }
+  .mock-toast { background: #232932; border: 1px solid var(--ui-stroke-secondary); padding: 8px 12px; border-radius: 8px; font-size: 12px; }
+  .mock-toast-error { border-color: var(--ui-red); }
+  button { font-family: inherit; }
+  #transcript { max-width: 640px; margin: 24px auto; display: grid; gap: 8px; }
+  #transcript p { margin: 0; color: var(--ui-text-secondary); }
+  .codicon { display: inline-block; width: 1em; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="side"><div class="row">New session</div><div class="row">Sessions</div><div class="row">Capabilities</div><div class="row on">Flower Shop</div></div>
+  <div id="main"></div>
+  <div id="status"><span>gateway ok</span><span id="chip"></span></div>
+</div>
+<div id="toasts"></div>
+<script type="module" src="/tests/desktop/harness/entry.mjs"></script>
+</body>
+</html>

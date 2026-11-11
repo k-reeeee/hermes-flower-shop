@@ -185,4 +185,3 @@ export function SetupPage() {
   )
 }
 
-export { deptLabel, rest }
