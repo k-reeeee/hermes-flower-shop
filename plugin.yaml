@@ -1,0 +1,48 @@
+name: flower-shop
+version: 0.1.0
+description: "Run a flower shop with an AI team inside Hermes: sales, inventory, production, finance and logistics agents propose, and the owner approves on live desktop cards. Orders, recipes, stock, production, delivery and money estimates in one local SQLite database - no network calls."
+author: Flower Shop contributors
+license: MIT
+homepage: https://github.com/OWNER/hermes-flower-shop
+manifest_version: 2
+api_version: 1
+requires_hermes: ">=0.22.0"
+tags: [business, desktop, smb, florist, inventory, orders]
+provides_tools:
+  - flowershop_team_playbook
+  - flowershop_get_briefing
+  - flowershop_get_business_profile
+  - flowershop_update_business_profile
+  - flowershop_list_orders
+  - flowershop_get_order
+  - flowershop_create_order_draft
+  - flowershop_update_order_draft
+  - flowershop_check_availability
+  - flowershop_estimate_order
+  - flowershop_request_order_confirmation
+  - flowershop_request_order_cancellation
+  - flowershop_list_inventory
+  - flowershop_get_inventory_item
+  - flowershop_create_inventory_item
+  - flowershop_propose_stock_receipt
+  - flowershop_propose_stock_adjustment
+  - flowershop_propose_wastage
+  - flowershop_list_recipes
+  - flowershop_create_recipe
+  - flowershop_list_production_tasks
+  - flowershop_update_production_status
+  - flowershop_schedule_delivery
+  - flowershop_update_delivery_status
+  - flowershop_list_deliveries
+  - flowershop_get_financial_summary
+  - flowershop_propose_payment
+  - flowershop_propose_expense
+  - flowershop_list_approvals
+  - flowershop_decide_approval
+  - flowershop_attach_design_reference
+config_schema:
+  chat_approvals:
+    type: bool
+    default: true
+    label: "Allow approvals relayed in chat"
+    description: "When enabled, the owner can approve or reject pending approvals from the chat (and the /flowershop agent relays the decision). When off, decisions only happen through the desktop Approve/Reject buttons."

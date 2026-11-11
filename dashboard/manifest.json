@@ -1,0 +1,8 @@
+{
+  "name": "flower-shop",
+  "label": "Flower Shop",
+  "description": "Run a flower shop with an AI team - sales, inventory, production, finance and logistics propose, the owner approves on a live card. Orders, stock, recipes, production, delivery and money estimates in one SQLite database, no network calls.",
+  "icon": "flower",
+  "version": "0.1.0",
+  "api": "plugin_api.py"
+}
