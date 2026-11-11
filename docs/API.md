@@ -77,8 +77,8 @@ InventoryCategory flower, foliage, wrapping, ribbon, card, vase, other
 
 ```jsonc
 // BusinessProfile
-{ "business_name": "Toko Bunga Melati", "business_type": "florist", "currency": "IDR",
-  "timezone": "Asia/Jakarta", "location": "Jakarta Selatan", "business_hours": "08:00-20:00",
+{ "business_name": "Rose & Thorn Floral Studio", "business_type": "florist", "currency": "USD",
+  "timezone": "America/New_York", "location": "128 Ludlow Street, Lower East Side, New York", "business_hours": "08:00-19:00",
   "enabled_departments": ["sales","inventory","production","finance","logistics"],
   "onboarding_complete": false, "is_demo_data_loaded": true }
 
@@ -184,7 +184,7 @@ InventoryCategory flower, foliage, wrapping, ribbon, card, vase, other
 | GET `/theme` | | `{available, bundled:[{name,title,tone,polarity,description}], installed, active, previous, choice}` — the bundled garden skin offer |
 | POST `/theme` | `{choice:"apply"\|"keep", theme?}` | `{activate, choice, copied, unchanged, state}` — prepares the skin and returns the name the client hands to Hermes' `config.set {key:"skin"}`; it never switches it |
 | POST `/theme/revert` | | `{revert_to}` — the skin to switch back to |
-| POST `/demo/seed` | `{reset?: bool}` | `{seeded: true, counts}` (marks rows `is_demo=1`) |
+| POST `/demo/seed` | `{reset?: bool, locale?: "intl"\|"id"}` (default `intl`) | `{seeded: true, locale, counts}` (marks rows `is_demo=1`) |
 | POST `/demo/clear` | | `{removed: counts}` — deletes ONLY `is_demo=1` rows |
 | GET `/overview` | | see below |
 | GET `/orders` | `status, q, due (today\|late\|upcoming), limit=50, offset=0` | `{items: OrderSummary[], total}` |

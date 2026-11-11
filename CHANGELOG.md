@@ -2,6 +2,13 @@
 
 ## Unreleased — design kit v1 + Anthousa theme
 
+- **Demo data is now international by default.** `seed_demo(locale=...)` ships two datasets — an
+  international shop in USD (default) and the original Indonesian one — and `POST /demo/seed`
+  takes `{"locale": "intl"|"id"}`. Same scenario in either market, so screenshots and the live
+  app tell one story.
+- **README:** a new "It isn't only for flowers" section — the flower shop is a demo of a general
+  shape (one record of ordered / stocked / made / shipped / paid, agents that propose, an owner
+  who approves) that fits a bakery, print shop, repair shop or any small physical business.
 - **Theme:** `theme/` ships *Anthousa*, a matching Hermes skin in two variants —
   marble daylight and aubergine dusk — plus a self-contained palette preview.
   Re-skins Desktop, TUI and CLI from one file; every text colour clears WCAG AA.

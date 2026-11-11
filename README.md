@@ -85,6 +85,36 @@ companion, not a requirement.
 - **Setup / onboarding + removable demo data** — a guided setup, and a demo shop
   that can be loaded and cleared without touching real records.
 
+## It isn't only for flowers
+
+**The flower shop is a demo, not a limit.** Nothing in the engine knows what a
+rose is. What the plugin actually provides is a general shape for any small
+physical business:
+
+> one shared record of **what was ordered**, **what is in stock**, **what is
+> being made**, **what is going out**, and **what was paid** — plus a team of
+> agents that can only *propose* changes, and a queue where the owner approves
+> them.
+
+Anything that sells, makes and delivers a physical thing fits that shape: a
+bakery, a coffee roaster, a print shop, a dry cleaner, a bike repair shop, a
+caterer, a ceramics studio, a flower shop. Swap the vocabulary and the same
+workspace holds up — *recipes* become formulas or job tickets, *stations*
+become workbenches or machines, *delivery* becomes pickup or shipping.
+
+Ways to make it yours, cheapest first:
+
+| What | How |
+|---|---|
+| Your market | `POST /demo/seed {"locale": "id"}` loads the Indonesian demo instead of the default international (USD) one — see [`docs/API.md`](docs/API.md) |
+| Your business | Set name, currency, timezone, location and opening hours in **Setup**, or through `flowershop_update_business_profile` |
+| Your catalogue | Add your own SKUs, bouquet **recipes** and their components — the stock, cost and margin maths follows automatically |
+| Your team | The five department skills in `skills/` are plain markdown: rewrite Sales / Inventory / Production / Finance / Logistics for your trade, or drop the ones you don't need |
+| Your flow | Production stations, approval types and the order lifecycle live in `flowershop_core/services/` and the numbered SQL migrations — the same layer every agent and every screen already goes through |
+
+The bundled **Anthousa** skin (below) is optional and swappable for the same
+reason: it is a companion, not a requirement.
+
 ## How it works
 
 ```

@@ -27,7 +27,7 @@ from fastapi.responses import FileResponse  # noqa: E402
 import flowershop_core  # noqa: E402
 from flowershop_core import get_store, hermes_env  # noqa: E402
 from flowershop_core.errors import FlowerShopError  # noqa: E402
-from flowershop_core.seed import clear_demo, counts, seed_demo  # noqa: E402
+from flowershop_core.seed import DEFAULT_LOCALE, clear_demo, counts, seed_demo  # noqa: E402
 from flowershop_core.services import (  # noqa: E402
     approvals,
     delivery,
@@ -179,7 +179,8 @@ def revert_theme():
 
 @router.post("/demo/seed")
 def demo_seed(body: dict = Body(default_factory=dict)):
-    return _run(lambda: seed_demo(get_store(), reset=_bool(body.get("reset"), False)))
+    return _run(lambda: seed_demo(get_store(), reset=_bool(body.get("reset"), False),
+                                 locale=str(body.get("locale") or DEFAULT_LOCALE)))
 
 
 @router.post("/demo/clear")
