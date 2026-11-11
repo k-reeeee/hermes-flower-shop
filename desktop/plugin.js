@@ -34517,7 +34517,27 @@ function SetupPage() {
 // desktop/src/pages/welcome.js
 import { useEffect as useEffect7, useState as useState15 } from "react";
 import { Button as Button13, host as host4, Input as Input7, Switch as Switch2 } from "@hermes/plugin-sdk";
-var OPENING_PROMPT = "Set up my business";
+var OPENING_PROMPT = [
+  "Set up my business with Flower Shop.",
+  "",
+  "Flower Shop is a Hermes plugin (id: flower-shop) that runs my shop with an AI team.",
+  "Load the skill `flower-shop:flower-shop-onboarding` with skill_view and follow it exactly - it has the full script.",
+  "",
+  "This is my first time, so start at beat 1 and run the 8 beats in order, in my language:",
+  "1. Welcome me",
+  "2. Ask what business I am in -> show the ::flowershop-onboarding-type{} card",
+  "3. Ask what I need help with -> show the ::flowershop-onboarding-needs{} card",
+  "4. Explain how Flower Shop fits -> show the ::flowershop-onboarding-fit{} card",
+  "5. Recommend my team -> show the ::flowershop-onboarding-team{} card",
+  "6. Offer to create bot profiles -> show the ::flowershop-onboarding-bots{} card",
+  "7. Run the fit / custom-plugin assessment",
+  "8. Give my first daily briefing",
+  "",
+  "Rules:",
+  "- Use the flowershop_* tools for every write; they are the one record of truth.",
+  "- Put each card directive on its own line so the Desktop renders it.",
+  "- Every consequential action (creating bot profiles, recording money, changing stock) needs my explicit approval first - propose, do not do."
+].join("\n");
 var WELCOME_TITLE = "Flower Shop - set up your business";
 var TYPES2 = [{ value: "florist", label: "Florist" }, { value: "flower_stand", label: "Flower stand" }, { value: "event_florist", label: "Event and wedding florist" }, { value: "other", label: "Other" }];
 var TZS2 = ["Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura", "Asia/Singapore", "Asia/Kuala_Lumpur", "Asia/Bangkok", "Asia/Manila", "Asia/Tokyo", "Australia/Sydney", "Europe/London", "Europe/Amsterdam", "America/New_York", "America/Los_Angeles", "UTC"];
