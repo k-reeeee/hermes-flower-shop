@@ -48,6 +48,8 @@ provides_tools:
   - flowershop_list_approvals
   - flowershop_decide_approval
   - flowershop_attach_design_reference
+provides_hooks:
+  - pre_tool_call
 config_schema:
   chat_approvals:
     type: bool
