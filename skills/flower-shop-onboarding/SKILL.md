@@ -130,8 +130,10 @@ anything consequential) each go through the approval flow and **require the owne
 explicit approval**. An approval-gated tool only creates a PENDING approval and returns a
 `directive`. Tell the owner "This needs your approval" and put the directive on its own line.
 **Never say the action is done.** If the owner confirms in chat, relay it with
-`flowershop_decide_approval` quoting their exact words in `owner_statement` (only when
-chat approvals are enabled).
+`flowershop_decide_approval` quoting their exact words in `owner_statement` — **only when the
+owner has turned on *Chat approvals*** (off by default, and even then Hermes will still ask the
+owner to confirm; the agent never approves). Otherwise, point the owner to the **Approve / Reject
+card on Desktop**.
 
 ## Working order summary
 

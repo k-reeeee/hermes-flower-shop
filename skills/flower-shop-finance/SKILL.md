@@ -75,7 +75,10 @@ Payments and expenses are approval-gated. They create a PENDING approval and
 return a directive. Say "This needs your approval", put the directive on its own
 line, and never claim the money is recorded. If the owner says yes in chat,
 relay it with `flowershop_decide_approval`, quoting their exact words in
-`owner_statement` (only when the chat_approvals setting is enabled).
+`owner_statement` — **only when the owner has turned on *Chat approvals*** (off
+by default, and even then Hermes will still ask the owner to confirm; the agent
+never approves). Otherwise, point the owner to the **Approve / Reject card on
+Desktop**.
 
 ## Examples
 
