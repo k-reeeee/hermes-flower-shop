@@ -55,8 +55,9 @@ units plus an ISO currency, never floats.
 
 ## Admission checks (rules 7–9, 17)
 
-`hermes plugins validate .` on the pinned tree, run locally — pasted verbatim,
-warning included:
+`hermes plugins validate` on the pinned tree, run locally (via `git archive HEAD`),
+pasted verbatim (note the informational `◆ Isolation` line — the plugin runs in the
+plugin host, which is expected and not an error):
 
 ```
 ✓ manifest — plugin.yaml parses
@@ -75,7 +76,9 @@ warning included:
 ✓ security scan — safe
 ✓ no core override — no runtime rebinds of Hermes core
 ✓ desktop surface — stays inside the plugin SDK surface
-✓ private core imports — none (`flowershop_core` stays Hermes-free)
+◆ Isolation — runs in the plugin host (plugins.isolation: host)
+  · dashboard backend API is served through the plugin host (buffered responses)
+
 Validation passed.
 ```
 
@@ -88,7 +91,8 @@ owner's **suggested** assistant team (`status: "suggested"`, free-form names lik
 example). Real profile creation is the owner's job: the Desktop Team step's
 **Create** button (`profiles.create`) or `hermes profile create <name>` — the
 tool returns the exact command per bot. No core import, no Hermes-side side
-effect; the catalog validation passes with zero warnings.
+effect; the catalog validation passes (only the informational `◆ Isolation` host
+notice, no errors).
 
 Dependencies: **none** beyond the stdlib and Hermes itself — `sqlite3`, numbered
 SQL migrations, `BEGIN IMMEDIATE` for reservations (rule 10 has nothing to
