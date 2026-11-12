@@ -168,7 +168,7 @@ InventoryCategory flower, foliage, wrapping, ribbon, card, vase, other
 
 // DesignReference
 { "id": 1, "order_id": 12, "kind": "generated_image|canvas|uploaded_reference",
-  "asset_path": "/abs/path/on/backend.png", "prompt": "...", "metadata": {}, "created_by": "...",
+  "asset_path": "<uploads folder>/FS-1042-peony-ref.jpg", "prompt": "...", "metadata": {}, "created_by": "...",
   "created_at": "...", "image_url_path": "/designs/1/image" }
 ```
 

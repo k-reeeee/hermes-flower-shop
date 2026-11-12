@@ -539,14 +539,18 @@ SCHEMAS: dict[str, dict] = {
     },
     "flowershop_attach_design_reference": {
         "name": "flowershop_attach_design_reference",
-        "description": "Attach a design reference (generated image, canvas, or an uploaded reference file) to an "
-                       "order. Provide kind, and an existing absolute image asset_path on the Hermes host "
-                       "(image formats: png, jpg, jpeg, webp, gif), plus optional prompt and metadata. Direct "
-                       "and audited.",
+        "description": "Attach a design reference (generated image, canvas, or an uploaded reference file) "
+                       "to an order. asset_path must be a file inside the Flower Shop uploads folder "
+                       "(image formats: png, jpg, jpeg, webp, gif); ask the owner to add the image there "
+                       "(or attach it from the Desktop order page) if it is not. Optional prompt and "
+                       "metadata. Direct and audited.",
         "parameters": {"type": "object", "properties": {
             "order_id": _itemref("order"),
             "kind": {"type": "string", "enum": ["generated_image", "canvas", "uploaded_reference"]},
-            "asset_path": {"type": "string", "description": "Existing absolute path to an image file."},
+            "asset_path": {"type": "string",
+                           "description": "A file inside the Flower Shop uploads folder (absolute path or "
+                                          "bare filename). Files elsewhere are rejected - ask the owner to add "
+                                          "the image to the uploads folder."},
             "prompt": {"type": "string"},
             "metadata": {"type": "object"},
             "department": _dept("manager"),
