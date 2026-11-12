@@ -8,3 +8,4 @@ node_modules/
 *.db-shm
 tests/desktop/out/
 .DS_Store
+theme/backup/

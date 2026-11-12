@@ -9,8 +9,12 @@ HERMES_DIR="${HERMES_HOME:-$HOME/.hermes}"
 SKINS="$HERMES_DIR/skins"
 BACKUP="$HERE/backup"
 
-TARGET="$(tr -d '[:space:]' < "$BACKUP/active-skin.txt" 2>/dev/null || true)"
-TARGET="${TARGET:-claude-readability-dark}"
+if [ -f "$BACKUP/active-skin.txt" ]; then
+  TARGET="$(tr -d '[:space:]' < "$BACKUP/active-skin.txt")"
+else
+  echo "note: no $BACKUP here (backups live outside the repo) — restoring active skin only" >&2
+  TARGET="claude-readability-dark"
+fi
 
 mkdir -p "$SKINS"
 for f in "$BACKUP"/*.yaml; do
