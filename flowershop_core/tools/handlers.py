@@ -181,47 +181,43 @@ def flowershop_recommend_team(args: dict, **kwargs) -> str:
 
 
 def flowershop_create_bot(args: dict, **kwargs) -> str:
-    """Create real Hermes profiles for each chosen bot, then record the choice.
+    """Record the owner's SUGGESTED assistant team; NEVER creates Hermes profiles.
 
-    Profile creation is lazy-imported inside the handler so ``flowershop_core``
-    stays Hermes-free at module level. If any profile fails to create, nothing is
-    recorded and the tool returns ``profile_create_failed``.
+    Real profile creation is the owner's job: the Desktop Team step (Create
+    button) or ``hermes profile create <name>``. This tool only stores the
+    proposal via onboarding.answer(beat="bots") with each bot status
+    "suggested", so no Hermes import is ever attempted.
     """
     s = get_store()
     actor = _actor(args, "flowershop_create_bot")
     bots = (args or {}).get("bots")
     if not isinstance(bots, list):
-        return _err(error="validation_error", message="bots must be a list of {name, profile}",
+        return _err(error="validation_error", message="bots must be a list of {name, purpose?}",
                     field="bots")
+    recorded = []
     for bot in bots:
-        if not isinstance(bot, dict) or not bot.get("name") or not bot.get("profile"):
+        if not isinstance(bot, dict) or not bot.get("name"):
             return _err(error="validation_error",
-                        message="Each bot must have name and profile", field="bots")
+                        message="Each bot must have a name; profile and purpose are optional",
+                        field="bots")
+        entry = {"name": str(bot["name"]), "status": "suggested"}
+        if bot.get("profile"):
+            entry["profile"] = str(bot["profile"])
+        purpose = bot.get("purpose") or bot.get("description")
+        if purpose:
+            entry["purpose"] = str(purpose)
+        recorded.append(entry)
     try:
-        from hermes_cli import profiles as _profiles  # lazy: keep core Hermes-free
-    except Exception as e:  # noqa: BLE001
-        log.exception("hermes_cli import failed (flowershop_create_bot)")
-        return _err(error="profile_create_failed",
-                    message="Could not load Hermes profile tooling: " + str(e))
-    created = []
-    for bot in bots:
-        try:
-            path = _profiles.create_profile(
-                name=bot["name"],
-                description=bot.get("description") or bot.get("purpose"),
-                no_skills=True,
-                no_alias=True,
-            )
-            created.append({"name": bot["name"], "profile": bot["profile"],
-                            "profile_path": str(path)})
-        except Exception as e:  # noqa: BLE001
-            log.exception("profile creation failed for %s", bot.get("name"))
-            return _err(error="profile_create_failed",
-                        message=f"Could not create profile for {bot.get('name')!r}: {e}")
-    try:
-        st = onboarding.answer(s, "bots", bots, actor)
-        return json.dumps({"ok": True, "created": created, "state": st},
-                          default=str, ensure_ascii=False)
+        st = onboarding.answer(s, "bots", recorded, actor)
+        commands = [f"hermes profile create {b['name']}" for b in recorded]
+        return json.dumps({
+            "ok": True,
+            "recorded": recorded,
+            "commands": commands,
+            "state": st,
+            "next_step": "Profiles are not created by the agent. The owner creates them on the "
+                         "Desktop Team step (Create button), or runs: " + " · ".join(commands),
+        }, default=str, ensure_ascii=False)
     except FlowerShopError as e:
         return _error(e)
     except Exception as e:  # noqa: BLE001

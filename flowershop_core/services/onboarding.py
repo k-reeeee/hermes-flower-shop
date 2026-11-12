@@ -239,8 +239,8 @@ def answer(s: Store, beat: str | None, answer_value: Any, actor: str = "owner") 
                         [d for d in answer_value if d in _DEFAULT_DEPARTMENTS])
         if beat == "bots" and isinstance(answer_value, list):
             for bot in answer_value:
-                if not isinstance(bot, dict) or "name" not in bot or "profile" not in bot:
-                    raise ValidationError("Each bot must have name and profile", field="answer")
+                if not isinstance(bot, dict) or "name" not in bot:
+                    raise ValidationError("Each bot must have a name", field="answer")
             _set_column(t, "bots", answer_value)
         if beat == "custom" and isinstance(answer_value, dict):
             _set_column(t, "custom_plugin", answer_value)

@@ -69,28 +69,20 @@ warning included:
 ✓ security scan — safe
 ✓ no core override — no runtime rebinds of Hermes core
 ✓ desktop surface — stays inside the plugin SDK surface
-⚠ private core imports (catalog rule 9: public surfaces only; these can break on
-any release): flowershop_core/tools/handlers.py:201 hermes_cli.profiles. Use
-ctx.* / documented plugin APIs, or open an issue for the seam you need.
+✓ private core imports — none (`flowershop_core` stays Hermes-free)
 Validation passed.
 ```
 
-The single warning is **disclosed rather than hidden**. Rule 9's refusal covers
-*replacing, wrapping or rebinding* core functions, methods, module attributes or
-private dicts — this plugin does none of that, and the `no core override` check
-passes. The flagged line is a **lazy import inside the handler**
-(`from hermes_cli import profiles as _profiles`), so `flowershop_core` stays
-Hermes-free at module level, and it is used for one thing: the onboarding
-**bots** step calls the documented-argument
-`hermes_cli.profiles.create_profile(name=..., description=..., no_skills=True,
-no_alias=True)` to create a real Hermes profile per department agent. It reads
-and creates; it patches nothing. If the import fails, the tool returns a typed
-`profile_create_failed` error instead of raising, and the step records nothing.
-
-There is no public plugin API for creating a profile, which is why the seam is
-there. **Maintainers:** if you would rather the entry carry no core import at
-all, say so in review and the bots step will degrade to recording the owner's
-choice without creating profiles — no other behaviour depends on it.
+The catalog check is now clean. Earlier reviews flagged a lazy
+`from hermes_cli import profiles` inside the onboarding bots tool; that seam is
+gone. Per the maintainer review on #153762 ("agents propose, owner approves"),
+`flowershop_create_bot` no longer creates profiles at all: it only records the
+owner's **suggested** assistant team (`status: "suggested"`, free-form names like
+`sales` / `florist` — the `flower-shop-<department>` profiles are just an
+example). Real profile creation is the owner's job: the Desktop Team step's
+**Create** button (`profiles.create`) or `hermes profile create <name>` — the
+tool returns the exact command per bot. No core import, no Hermes-side side
+effect; the catalog validation passes with zero warnings.
 
 Dependencies: **none** beyond the stdlib and Hermes itself — `sqlite3`, numbered
 SQL migrations, `BEGIN IMMEDIATE` for reservations (rule 10 has nothing to

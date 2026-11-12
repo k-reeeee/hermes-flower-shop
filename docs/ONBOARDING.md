@@ -31,7 +31,7 @@ Hermes' own first-run onboarding (`agent/onboarding_*.py`, `tools/setup_beat_too
 | 3 | **Needs** | "What do you need help with? Pick all that apply." | **Card: needs** (multi-select: Orders & customers · Stock & inventory · Production & recipes · Delivery · Money & finance · Something else) → `flowershop_answer_onboarding` |
 | 4 | **Fit** | "Here's how Flower Shop helps with each of those." | **Card: fit** — one line per need, mapped to a department |
 | 5 | **Team** | "Based on that, here's the team I recommend. Toggle any you don't need." | **Card: team** — department toggles, pre-checked from needs → `flowershop_update_business_profile` |
-| 6 | **Bots** | "Want bot profiles for your business? Each is a separate AI assistant." | **Card: bots** — One business assistant · One per department · Skip → `flowershop_create_bot` |
+| 6 | **Bots** *(optional)* | "Want a team of separate assistants? You can run the whole shop with one assistant and add team members later anytime." | **Card: bots** — free-form assistant names (e.g. `sales`, `florist`, `delivery`) or Skip → `flowershop_create_bot` records **suggestions only** (never creates profiles) |
 | 7 | **Custom** | "Does Flower Shop cover your business?" | **Card: fit assessment** — "you're set" or "here's what's missing" → `flowershop_assess_fit` |
 | 8 | **Theme** *(optional)* | "Want the shop to look like ours? Here's our garden theme — or keep everything exactly as it is." | **Card: theme** — both variants + **Keep my current theme** → `flowershop_choose_theme` prepares the skin → the owner's click calls Hermes' `config.set {key: "skin"}` |
 | 9 | **First result** | "Here's your first daily briefing." | `::flowershop-briefing{}` → `onboarding_complete` |
@@ -91,7 +91,7 @@ Extend `business_profile` (migration `000X_onboarding.sql`):
 |--------|------|---------|
 | `needs` | TEXT (JSON array) | The owner's selected needs |
 | `fit` | TEXT (JSON object) | `{covered: [...], gaps: [...], assessment: "..."}` |
-| `bots` | TEXT (JSON array) | `[{name, profile, status}]` |
+| `bots` | TEXT (JSON array) | `[{name, profile?, purpose?, status: "suggested"}]` — proposals only |
 | `custom_plugin` | TEXT (JSON object) | `{needed: bool, reasons: [...], offer: "..."}` |
 
 `onboarding_json` gains a `beats` object: `{beat_id: {"done": ts, "answer": ...}}`, plus a `theme`
@@ -151,7 +151,7 @@ the recorded choice along with the beats.
 | `flowershop_answer_onboarding` | write | Record a beat answer |
 | `flowershop_assess_fit` | read | Fit + custom assessment |
 | `flowershop_recommend_team` | read | Departments from needs |
-| `flowershop_create_bot` | write | Create a bot profile |
+| `flowershop_create_bot` | write | Record a SUGGESTED assistant team (never creates profiles) |
 | `flowershop_get_theme` | read | The theme offer: bundled, installed, active, previous |
 | `flowershop_choose_theme` | write | Record the owner's theme choice; prepares the skin files, and the returned directive is their one click to apply |
 
@@ -206,12 +206,16 @@ Each card's control writes through the REST API and returns the agent a short re
 
 ## 8. Bots
 
-The onboarding offers to create **bot profiles** (Hermes profiles) for the business:
+The Bots beat lets the owner record a **suggested** assistant team — it is optional and it
+**never creates Hermes profiles**. Names are free-form proposals (e.g. `sales`, `florist`,
+`delivery`); the bundled department profiles (`flower-shop-manager`,
+`flower-shop-<department>`) are only an example.
 
-- **One business assistant** — a single profile with the manager skill + all department skills.
-- **One per department** — five profiles, each with its department skill.
-
-Created via the `profiles.create` RPC, with the flower-shop skills attached and the manager as the coordinator. The result is written to `business_profile.bots` and shown on the Setup Studio.
+`flowershop_create_bot` stores each bot with `status: "suggested"` in
+`business_profile.bots` and returns the exact `hermes profile create <name>` command per
+bot. Real profiles are created by the owner — the Desktop Team step's **Create** button
+(`profiles.create` RPC) or `hermes profile create <name>` — and the Team step then records
+the real `created`/`error` statuses.
 
 ---
 
@@ -236,7 +240,9 @@ The assessment is deterministic (from `business_type` + `needs`) and stored, so 
 - The owner is asked what they need **before** being asked for data.
 - The fit explanation references the owner's own answers.
 - The **Other** path produces a concrete primitive mapping.
-- Bot creation produces real Hermes profiles that appear in the roster.
+- Bot suggestions are recorded as `status: "suggested"`; real Hermes profiles appear in
+  the roster only after the owner creates them (Desktop Create button or `hermes profile
+  create`).
 - The custom assessment names real gaps, not generic text.
 - Progress persists and resumes.
 - Every gated action still requires owner approval.
@@ -251,7 +257,7 @@ The assessment is deterministic (from `business_type` + `needs`) and stored, so 
 | 1 | Backend: migration, `services/onboarding.py`, REST, tools | — |
 | 2 | Skill: `flower-shop-onboarding/SKILL.md` + manager section | 1 (tool contract) |
 | 3 | Desktop: Welcome chat trigger, cards, Setup Studio | 1, 2 |
-| 4 | Bots: `profiles.create` wiring + Setup Studio showing bots | 3 |
+| 4 | Bots: suggestions recorded + Setup Studio showing bots (Create button = owner-only `profiles.create`) | 3 |
 | 5 | Custom plugin: fit assessment + extension offer | 3 |
 | 6 | Theme offer: bundled skin, opt-in beat, undo | 1, 3 |
 

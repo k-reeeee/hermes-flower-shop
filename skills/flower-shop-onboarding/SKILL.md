@@ -25,7 +25,7 @@ progress persists, so a returning owner resumes where they left off.
 | 3 | **Needs** | "What do you need help with? Pick all that apply." | `::flowershop-onboarding-needs{}` (multi-select: Orders & customers · Stock & inventory · Production & recipes · Delivery · Money & finance · Something else) → `flowershop_answer_onboarding` beat `needs` |
 | 4 | **Fit** | "Here's how Flower Shop helps with each of those." | `::flowershop-onboarding-fit{}` — one line per need, mapped to a department |
 | 5 | **Team** | "Based on that, here's the team I recommend. Toggle any you don't need." | `::flowershop-onboarding-team{}` — department toggles, pre-checked from needs → `flowershop_answer_onboarding` beat `team` |
-| 6 | **Bots** | "Want bot profiles for your business? Each is a separate AI assistant." | `::flowershop-onboarding-bots{}` — One business assistant · One per department · Skip → `flowershop_create_bot` |
+| 6 | **Bots** *(optional)* | "Want a team of separate assistants? You can run the whole shop with one assistant and add team members later anytime." | `::flowershop-onboarding-bots{}` — optional: propose free-form names (e.g. `sales`, `florist`, `delivery`) or Skip → `flowershop_create_bot` records them as **suggestions only** — it never creates Hermes profiles |
 | 7 | **Custom** | "Does Flower Shop cover your business?" | `::flowershop-onboarding-fit{}` — "you're set" or "here's what's missing" → `flowershop_assess_fit` |
 | 8 | **Theme** *(optional)* | "One cosmetic thing — we made a garden theme while building this. Want to see it, or keep yours?" | `::flowershop-onboarding-theme{}` — both variants + **Keep my current theme** → `flowershop_choose_theme` |
 | 9 | **First result** | "Here's your first daily briefing." | `::flowershop-briefing{}` → `flowershop_answer_onboarding` beat `first_result`, then `flowershop_assess_fit` for the fit state |
@@ -60,17 +60,19 @@ When the owner picks **Other**, ask what they do and map the five generic primit
 Give a concrete mapping like the bakery example, then run the fit assessment (beat 7)
 to judge whether the mapping holds.
 
-## Bot offer (beat 6)
+## Bot offer (beat 6) — suggestions only, never profile creation
 
-Offered as:
-- **One business assistant** — a single profile with the manager skill + all department skills.
-- **One per department** — five profiles, each with its department skill.
-- **Skip.**
+The team step is **optional**. The owner can run the whole shop with one assistant and
+add a team later anytime. If they want a team, propose free-form assistant names
+(e.g. `sales`, `florist`, `delivery`) — the bundled department profiles
+(`flower-shop-manager`, `flower-shop-<department>`) are only an example, never a
+template you must fill.
 
-Recommend one choice, keep it short, and let the owner decide. Record the choice with
-`flowershop_create_bot` (a list of `{name, profile}`). Ground the profiles in the real
-`flower-shop-<department>` skills (manager, sales, inventory, production, finance,
-logistics).
+Record the choice with `flowershop_create_bot` (a list of `{name, profile?, purpose?}`).
+The tool **never creates Hermes profiles** — it stores each bot with status
+`suggested`. Real profiles are created by the owner on the Desktop Team step
+(Create button) or by running `hermes profile create <name>`; the tool returns the
+exact command per bot in `commands`/`next_step`. Never claim a profile was created.
 
 ## Fit / custom assessment (beat 7) and what to say
 
@@ -121,7 +123,7 @@ The rules matter more than the wording:
 
 ## Approvals — the rule that never changes
 
-Gated actions (creating real Hermes profiles, paying, ordering, custom plugin work,
+Gated actions (changing an order, stock or money, paying, custom plugin work,
 anything consequential) each go through the approval flow and **require the owner's
 explicit approval**. An approval-gated tool only creates a PENDING approval and returns a
 `directive`. Tell the owner "This needs your approval" and put the directive on its own line.
@@ -134,7 +136,7 @@ chat approvals are enabled).
 1. `flowershop_get_onboarding` → pick up where you are.
 2. Walk the beats in order; reproduce the card directives; write via the tools.
 3. Map Other businesses to the five primitives; run the fit + custom assessment.
-4. Offer bots; record the choice.
+4. Offer bots as suggestions (free-form names); record the choice — profiles are created by the owner.
 5. Offer the garden theme as a gift — prepare it if they want it, and never claim it is applied.
 6. Produce the first briefing; mark setup complete.
 7. Keep the owner-approval rule for every consequential action.

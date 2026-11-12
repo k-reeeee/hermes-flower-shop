@@ -191,16 +191,25 @@ SCHEMAS: dict[str, dict] = {
     },
     "flowershop_create_bot": {
         "name": "flowershop_create_bot",
-        "description": "Record a bot profile the owner chose for the business (beat 6). Provide bots as a list "
-                       "of {name, profile}: one business assistant (profile flower-shop-manager with all "
-                       "department skills) or one per department (flower-shop-<department>). This records the "
-                       "choice and persists it to the business profile; actual profile creation and any "
-                       "consequential action still requires owner approval.",
+        "description": "Record a SUGGESTED assistant team for the business (beat 6). Bot names are "
+                       "free-form proposals from the owner or agent, e.g. 'sales', 'florist', "
+                       "'delivery' — the bundled department profiles (flower-shop-manager, "
+                       "flower-shop-<department>) are only an example. This tool NEVER creates "
+                       "Hermes profiles: it only records each bot with status 'suggested'. Real "
+                       "profiles are created by the owner on the Desktop Team step (Create button) "
+                       "or by running 'hermes profile create <name>' — the returned commands list "
+                       "the exact command per bot.",
         "parameters": {"type": "object", "properties": {
             "bots": {"type": "array", "items": {"type": "object",
-                                               "properties": {"name": {"type": "string"},
-                                                              "profile": {"type": "string"}},
-                                               "required": ["name", "profile"]}},
+                                               "properties": {"name": {"type": "string",
+                                                                       "description": "Assistant name, e.g. 'sales' or 'florist'."},
+                                                              "profile": {"type": "string",
+                                                                          "description": "Optional profile hint (e.g. flower-shop-sales)."},
+                                                              "purpose": {"type": "string",
+                                                                          "description": "Optional; what this assistant does for the shop."},
+                                                              "description": {"type": "string",
+                                                                              "description": "Optional; alias for purpose."}},
+                                               "required": ["name"]}},
             "department": _dept("manager"),
         }, "required": ["bots"]},
     },
