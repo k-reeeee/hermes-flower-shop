@@ -314,6 +314,25 @@ Example prompts for the chat:
 - It runs **no shell commands** and reads nothing outside its own data directory.
 - Demo data is marked as demo and can be cleared from the workspace.
 
+## Disclosures
+
+- **No network calls.** The plugin talks to nothing outside the machine; all
+  reads and writes are local to its own data directory (SQLite at
+  `plugin-data/flower-shop/flowershop.db`, plus `uploads/` for design
+  references).
+- **No telemetry.** Nothing is sent anywhere.
+- **Optional theme is opt-in and never self-activates.** When the owner
+  chooses the bundled Anthousa skins during onboarding, the plugin copies the
+  skin YAMLs (`theme/anthousa.yaml`, `theme/anthousa-night.yaml`) into
+  `<hermes home>/skins` — nothing more (services/theme.py `install()` is
+  idempotent and writes only that directory). Switching the *active* skin is a
+  separate, explicit one-click owner action handled by Hermes' own skin
+  mechanism, with an Undo back to the previous skin; the plugin never changes
+  the active skin by itself.
+- **The preview generator is dev-only.** `theme/make-preview.py` renders the
+  theme's `preview*.png` images by launching headless Chrome — it is never run
+  by the plugin at runtime (the PNGs are checked into the repo).
+
 ## Limitations
 
 - **Not an accounting ledger.** Finance numbers are operational estimates plus
