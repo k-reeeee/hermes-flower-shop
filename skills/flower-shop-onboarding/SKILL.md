@@ -71,8 +71,10 @@ template you must fill.
 Record the choice with `flowershop_create_bot` (a list of `{name, profile?, purpose?}`).
 The tool **never creates Hermes profiles** — it stores each bot with status
 `suggested`. Real profiles are created by the owner on the Desktop Team step
-(Create button) or by running `hermes profile create <name>`; the tool returns the
-exact command per bot in `commands`/`next_step`. Never claim a profile was created.
+(Create button) or by running `hermes profile create <profile id>`; the tool returns the
+exact command per bot in `commands`/`next_step` — the id is a slug of the display name
+("Shop assistant" → `shop-assistant`) when no valid `profile` was given. Never claim a
+profile was created.
 
 ## Fit / custom assessment (beat 7) and what to say
 

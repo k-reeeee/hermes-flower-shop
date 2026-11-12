@@ -13,6 +13,7 @@ import pytest
 
 from flowershop_core.errors import InvalidTransition, NotFound, ValidationError
 from flowershop_core.services import finance, inventory, orders, production
+from flowershop_core.services.common import slugify_profile, valid_profile
 
 from .helpers import future, make_draft, make_item, make_recipe, stock
 
@@ -235,3 +236,36 @@ def test_audit_events_written_for_writes(store):
     assert "confirmed" in actions
     # the demo seed is skipped here; the audit row must carry a valid actor.
     assert all(r["actor"] in ("owner", "agent:sales") for r in info)
+
+
+# ---------------------------------------------------------------------------
+# Hermes profile id slugging (BUG 2)
+# ---------------------------------------------------------------------------
+
+def test_slugify_profile_rule():
+    """Hermes profile ids: lowercase letters/numbers/_- only, start with a
+    letter/number, max 64; everything else collapses to '-'. Spaces are invalid."""
+    assert slugify_profile("Shop assistant") == "shop-assistant"
+    assert slugify_profile("Florist!!") == "florist"
+    assert slugify_profile("  ") == "my-work"
+    assert slugify_profile("") == "my-work"
+    assert slugify_profile(None) == "my-work"
+    # a 80-char name is truncated to the 64-char cap
+    long = "x" * 80
+    assert len(slugify_profile(long)) == 64
+    assert slugify_profile(long) == "x" * 64
+    # leading/trailing separators stripped, inner kept
+    assert slugify_profile("_ Senior Florist _") == "senior-florist"
+
+
+def test_valid_profile_rule():
+    assert valid_profile("shop-assistant") is True
+    assert valid_profile("a") is True
+    assert valid_profile("shop assistant") is False  # space is invalid
+    assert valid_profile("Shop") is False  # uppercase invalid
+    assert valid_profile("-leading") is False  # must start with letter/number
+    assert valid_profile("my-work") is True
+    assert valid_profile("") is False
+    assert valid_profile(None) is False
+    assert valid_profile("x" * 64) is True
+    assert valid_profile("x" * 65) is False  # over the 64 cap

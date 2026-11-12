@@ -212,10 +212,12 @@ The Bots beat lets the owner record a **suggested** assistant team — it is opt
 `flower-shop-<department>`) are only an example.
 
 `flowershop_create_bot` stores each bot with `status: "suggested"` in
-`business_profile.bots` and returns the exact `hermes profile create <name>` command per
-bot. Real profiles are created by the owner — the Desktop Team step's **Create** button
-(`profiles.create` RPC) or `hermes profile create <name>` — and the Team step then records
-the real `created`/`error` statuses.
+`business_profile.bots` and returns the exact `hermes profile create <profile id>`
+command per bot (the id is a slug of the display name when no valid `profile` was
+given — e.g. "Shop assistant" → `shop-assistant`). Real profiles are created by the
+owner — the Desktop Team step's **Create** button
+(`profiles.create` RPC) or `hermes profile create <profile id>` — and the Team step
+then records the real `created`/`error` statuses.
 
 ---
 

@@ -62,20 +62,35 @@ def test_create_bot_records_suggested_without_hermes_cli(store, monkeypatch):
 
     d = call("flowershop_create_bot", {"bots": [
         {"name": "sales", "purpose": "take orders"},
-        {"name": "florist", "profile": "flower-shop-production", "description": "arrange bouquets"},
+        {"name": "Florist!!", "profile": "flower-shop-production", "description": "arrange bouquets"},
     ]})
     assert d["ok"] is True
     assert d["recorded"] == [
-        {"name": "sales", "purpose": "take orders", "status": "suggested"},
-        {"name": "florist", "profile": "flower-shop-production", "purpose": "arrange bouquets",
+        {"name": "sales", "profile": "sales", "purpose": "take orders", "status": "suggested"},
+        {"name": "Florist!!", "profile": "flower-shop-production", "purpose": "arrange bouquets",
          "status": "suggested"},
     ]
-    assert d["commands"] == ["hermes profile create sales", "hermes profile create florist"]
+    # commands and recorded profile use the slug, never the raw display name
+    assert d["commands"] == [
+        "hermes profile create sales", "hermes profile create flower-shop-production"]
     assert "not created by the agent" in d["next_step"]
     assert "hermes profile create sales" in d["next_step"]
     st = ob.state(store)
     assert st["bots"] == d["recorded"]
     assert all(b["status"] == "suggested" for b in st["bots"])
+
+
+def test_create_bot_slugs_profile_from_name(store):
+    """A bot with no profile (or an invalid one, e.g. spaces) gets a derived
+    profile id via the same slug rule Hermes uses; commands must use it."""
+    d = call("flowershop_create_bot", {"bots": [
+        {"name": "Shop assistant", "purpose": "handle customers"},
+        {"name": "Senior Florist", "profile": "Bad profile!!", "purpose": "arrange"},
+    ]})
+    assert d["ok"] is True
+    assert [b["profile"] for b in d["recorded"]] == ["shop-assistant", "senior-florist"]
+    assert d["commands"] == [
+        "hermes profile create shop-assistant", "hermes profile create senior-florist"]
 
 
 def test_create_bot_validates_input(store):
@@ -85,7 +100,7 @@ def test_create_bot_validates_input(store):
     assert d["ok"] is False and d["error"] == "validation_error"
     d = call("flowershop_create_bot", {"bots": [{"name": "sales"}]})  # purpose/profile optional
     assert d["ok"] is True
-    assert d["recorded"] == [{"name": "sales", "status": "suggested"}]
+    assert d["recorded"] == [{"name": "sales", "profile": "sales", "status": "suggested"}]
 
 
 def test_reset_onboarding_tool(store):

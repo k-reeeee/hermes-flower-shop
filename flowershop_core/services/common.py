@@ -85,3 +85,27 @@ def resolve_id(t: Tx, table: str, ref: Any, human_col: str | None = None, label:
 
 def dumps(v: Any) -> str:
     return json.dumps(v, default=str, ensure_ascii=False)
+
+
+_MAX_PROFILE = 64
+_PROFILE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
+_FALLBACK_PROFILE = "my-work"
+
+
+def slugify_profile(name: str | None) -> str:
+    """Hermes profile id derived from a human display name.
+
+    Mirrors Hermes' own suggestion rule: lowercase, keep [a-z0-9_-], collapse
+    everything else (incl. spaces) to '-', strip leading/trailing '-'/'_', cap
+    at 64. Empty / invalid result falls back to 'my-work' (spaces are invalid
+    in a Hermes profile id).
+    """
+    if name is None or not str(name).strip():
+        return _FALLBACK_PROFILE
+    slug = re.sub(r"[^a-z0-9_-]+", "-", str(name).strip().lower()).strip("-_")[:_MAX_PROFILE]
+    return slug or _FALLBACK_PROFILE
+
+
+def valid_profile(profile: str | None) -> bool:
+    """True when the string is a valid Hermes profile id."""
+    return bool(profile) and bool(_PROFILE_RE.match(str(profile)))

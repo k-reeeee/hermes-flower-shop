@@ -183,6 +183,18 @@ function TeamEditor({ data }) {
 // records created/error back into the onboarding state. Skip stays.
 const EXAMPLE_TEAM_PROMPT = 'Create profiles: sales, florist, delivery as a team to handle weekend orders'
 const BOT_PLACEHOLDER = 'Assistant name'
+
+// Hermes profile id from a human display name (JS port of Hermes' own rule):
+// lowercase, keep [a-z0-9_-], collapse everything else (incl. spaces) to '-',
+// strip leading/trailing '-'/'_', cap at 64. Empty result falls back to
+// 'my-work'. A space in the name must never reach profiles.create as the id.
+const slugProfile = name => {
+  const s = String(name || '').trim().toLowerCase()
+  if (!s) return 'my-work'
+  const slug = s.replace(/[^a-z0-9_-]+/g, '-').replace(/^[-_]+|[-_]+$/g, '').slice(0, 64)
+  return slug || 'my-work'
+}
+
 function BotsEditor({ data, q }) {
   const act = useAct()
   const [busy, setBusy] = useState(false)
@@ -191,11 +203,11 @@ function BotsEditor({ data, q }) {
   const seed = () => {
     const known = data.bots || []
     const suggested = known.filter(b => !b.status || b.status === 'suggested')
-    if (suggested.length) return suggested.map(b => ({ name: b.name || '', purpose: b.purpose || '', status: 'suggested' }))
+    if (suggested.length) return suggested.map(b => ({ name: b.name || '', profile: b.profile || slugProfile(b.name), purpose: b.purpose || '', status: 'suggested' }))
     const done = known.filter(b => b.status === 'created' || b.status === 'error')
-    if (done.length) return done.map(b => ({ name: b.name || '', purpose: b.purpose || '', status: b.status }))
+    if (done.length) return done.map(b => ({ name: b.name || '', profile: b.profile || slugProfile(b.name), purpose: b.purpose || '', status: b.status }))
     // Nothing suggested yet: one starter row, no hard-coded departments.
-    return [{ name: 'Shop assistant', purpose: '', status: '' }]
+    return [{ name: 'Shop assistant', profile: slugProfile('Shop assistant'), purpose: '', status: '' }]
   }
   useEffect(() => {
     if (rows === null) setRows(seed())
@@ -204,8 +216,19 @@ function BotsEditor({ data, q }) {
   const cur = rows === null ? seed() : rows
   const fresh = cur.every(b => b.status !== 'created' && b.status !== 'error')
   const empty = (data.bots || []).length === 0
-  const setRow = (i, patch) => setRows(r => r.map((x, k) => (k === i ? { ...x, ...patch } : x)))
+  const setRow = (i, patch) => setRows(r => r.map((x, k) => (k === i ? { ...x, ...patch, profile: patch.name !== undefined ? slugProfile(patch.name) : x.profile } : x)))
   const removeRow = i => setRows(r => r.filter((_, k) => k !== i))
+  // Two rows slugging to the same profile id would collide on profiles.create —
+  // block Create and tell the owner to fix the names.
+  const byProfile = new Map()
+  for (const b of cur) {
+    if (!b.name || !b.name.trim()) continue
+    const slug = slugProfile(b.name)
+    if (!byProfile.has(slug)) byProfile.set(slug, [])
+    byProfile.get(slug).push(b.name.trim())
+  }
+  const dupSlugs = [...byProfile.entries()].filter(([, names]) => names.length > 1)
+  const hasDup = dupSlugs.length > 0
   const createAll = async () => {
     setBusy(true)
     try {
@@ -213,17 +236,18 @@ function BotsEditor({ data, q }) {
       for (const b of cur) {
         if (!b.name || !b.name.trim()) continue
         const name = b.name.trim()
+        const profile = slugProfile(name)
         const purpose = (b.purpose || '').trim()
         try {
           const res = await host.request('profiles.create', {
-            name,
+            name: profile,
             description: 'Flower Shop ' + name + ' assistant' + (purpose ? ' - ' + purpose : ''),
             no_alias: true,
             no_skills: false
           })
-          results.push({ name, purpose, status: 'created', profile_id: res && (res.profile_id || res.id || res.name) })
+          results.push({ name, profile, purpose, status: 'created', profile_id: res && (res.profile_id || res.id || res.name) })
         } catch (e) {
-          results.push({ name, purpose, status: 'error', error: (e && e.message) || 'create failed' })
+          results.push({ name, profile, purpose, status: 'error', error: (e && e.message) || 'create failed' })
         }
       }
       await act.mutateAsync({ path: '/onboarding/beat', body: { beat: 'bots', answer: results } })
@@ -250,7 +274,9 @@ function BotsEditor({ data, q }) {
     h('div', { style: txt(12, C.t2, { lineHeight: 1.5 }) }, 'Optional. You can run the whole shop with one assistant and add a team later anytime. Rows below are suggestions - nothing is created on this machine until you press Create.'),
     h('div', { className: 'fs-page-stack', style: { gap: 4, borderTop: '1px solid ' + C.line, paddingTop: 8 } },
       cur.map((b, i) => h('div', { key: i, style: row(8, { alignItems: 'center', flexWrap: 'wrap' }) },
-        h(Input, { value: b.name, onChange: e => setRow(i, { name: e.target.value }), placeholder: BOT_PLACEHOLDER, 'aria-label': 'Assistant name', style: { flex: '0 0 220px' } }),
+        h('div', { style: col(2) },
+          h(Input, { value: b.name, onChange: e => setRow(i, { name: e.target.value }), placeholder: BOT_PLACEHOLDER, 'aria-label': 'Assistant name', style: { flex: '0 0 220px' } }),
+          h(Muted, null, 'profile id: ' + slugProfile(b.name))),
         h(Input, { value: b.purpose || '', onChange: e => setRow(i, { purpose: e.target.value }), placeholder: 'What they do (optional)', 'aria-label': 'Assistant purpose', style: { flex: 1, minWidth: 160 } }),
         b.status === 'created'
           ? h(Pill, { tone: 'ok' }, 'created')
@@ -268,7 +294,8 @@ function BotsEditor({ data, q }) {
           h('div', { style: txt(11, C.t3, { lineHeight: 1.5 }) }, 'Example prompt - click to copy:'),
           h('div', { style: row(6) }, h(Input, { readOnly: true, value: EXAMPLE_TEAM_PROMPT, onClick: e => e.target.select(), onFocus: e => e.target.select(), style: { flex: 1, minWidth: 200 } }), h(Button, { variant: 'outline', size: 'sm', onClick: copyExample }, 'Copy')))
       : null,
-    h('div', { className: 'fs-btnrow' }, h(Button, { disabled: busy, onClick: () => setConfirm(true) }, busy ? 'Creating profiles...' : 'Create assistant profiles'), h(Button, { variant: 'ghost', disabled: busy, onClick: async () => { const r = await runAct(act, { path: '/onboarding/beat', body: { beat: 'bots', answer: [{ name: 'Skip bots', status: 'skipped' }] } }, 'Bots skipped'); if (!r) toast('error', 'Could not skip.') } }, 'Skip')),
+    h('div', { className: 'fs-btnrow' }, h(Button, { disabled: busy || hasDup, onClick: () => setConfirm(true) }, busy ? 'Creating profiles...' : 'Create assistant profiles'), h(Button, { variant: 'ghost', disabled: busy, onClick: async () => { const r = await runAct(act, { path: '/onboarding/beat', body: { beat: 'bots', answer: [{ name: 'Skip bots', status: 'skipped' }] } }, 'Bots skipped'); if (!r) toast('error', 'Could not skip.') } }, 'Skip')),
+    hasDup ? h('div', { style: txt(11, C.bad, { lineHeight: 1.5 }) }, 'Two assistants slug to the same profile id (' + dupSlugs.map(([s]) => s).join(', ') + ') - make the names unique to create them.') : null,
     confirm ? h(Confirm, {
       open: true,
       onClose: () => setConfirm(false),

@@ -15,6 +15,7 @@ import logging
 from .. import get_store, hermes_env
 from ..errors import FlowerShopError, InsufficientStock
 from ..services import approvals, delivery, finance, insights, inventory, onboarding, orders, production, profile, studio, theme
+from ..services.common import slugify_profile, valid_profile
 from .schemas import DEFAULT_DEPARTMENTS
 
 log = logging.getLogger(__name__)
@@ -200,16 +201,23 @@ def flowershop_create_bot(args: dict, **kwargs) -> str:
             return _err(error="validation_error",
                         message="Each bot must have a name; profile and purpose are optional",
                         field="bots")
-        entry = {"name": str(bot["name"]), "status": "suggested"}
-        if bot.get("profile"):
-            entry["profile"] = str(bot["profile"])
+        name = str(bot["name"])
+        # Profile id: keep a provided VALID profile; otherwise derive it from the
+        # human display name with the same slug rule Hermes uses. Invalid provided
+        # profiles are slugified, never rejected.
+        provided = bot.get("profile")
+        # Keep a provided VALID profile id; otherwise (missing or invalid, e.g.
+        # spaces) derive the id from the human display name with the same slug
+        # rule Hermes uses. A bad provided value is slugified, never rejected.
+        profile_id = str(provided) if valid_profile(provided) else slugify_profile(name)
+        entry = {"name": name, "profile": profile_id, "status": "suggested"}
         purpose = bot.get("purpose") or bot.get("description")
         if purpose:
             entry["purpose"] = str(purpose)
         recorded.append(entry)
     try:
         st = onboarding.answer(s, "bots", recorded, actor)
-        commands = [f"hermes profile create {b['name']}" for b in recorded]
+        commands = [f"hermes profile create {b['profile']}" for b in recorded]
         return json.dumps({
             "ok": True,
             "recorded": recorded,
