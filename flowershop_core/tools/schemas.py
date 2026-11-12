@@ -433,7 +433,9 @@ SCHEMAS: dict[str, dict] = {
         "description": "Advance a production task to the next step (QUEUED -> PREP -> ASSEMBLY -> "
                        "QUALITY_CHECK -> DONE) or to BLOCKED / back from BLOCKED. Pass to_status to jump, else "
                        "the next step. When the task reaches DONE, reserved material is consumed and the order "
-                       "becomes READY. Direct and audited.",
+                       "becomes READY. Advancing a task to a stage consumes the order's recipe stock only for "
+                       "orders the owner already CONFIRMED (an approval or the owner acting directly); an "
+                       "unconfirmed order can never have a production task or consume stock. Direct and audited.",
         "parameters": {"type": "object", "properties": {
             "production_task_id": {"type": "string", "description": "Integer id of the production task."},
             "to_status": {"type": "string", "enum": ["QUEUED", "PREP", "ASSEMBLY", "QUALITY_CHECK", "DONE", "BLOCKED"]},

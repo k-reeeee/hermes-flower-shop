@@ -260,6 +260,11 @@ the acting department and creates an audit event.
   choice and overrides the plugin's per-call gate.
 - Read-only lookups and calculations run freely. Every write is audited with
   the acting department.
+- **Production consumes stock only for owner-approved orders.** Production
+  tasks are created when an order is CONFIRMED — by the owner approving a
+  `confirm_order` request or acting directly — and never for drafts.
+  Advancing a confirmed order's task to a stage consumes its recipe stock;
+  that order was already approved by the owner.
 
 ## Design assets
 
