@@ -17,6 +17,7 @@ strategy used by ``dashboard/plugin_api.py`` so both share ONE module instance.
 from __future__ import annotations
 
 import logging
+import re
 import sys
 from pathlib import Path
 
@@ -78,12 +79,27 @@ def _command_flowershop(raw_args: str, **kwargs) -> str:
     return _briefing_text()
 
 
+def _rule_key(approval_id, decision):
+    """Per-call allowlist grain so an "always"/"session" click can never cover
+    another approval. Each (approval_id, decision) pair is decided once."""
+    return f"flower-shop-decide-approval:{approval_id}:{decision}"
+
+
+def _sanitize_summary(text: str | None, cap: int = 160) -> str:
+    """Collapse whitespace/newlines and cap length so the message stays a
+    single line and is safe to inline (it can carry customer/model text)."""
+    flat = re.sub(r"\s+", " ", str(text or "")).strip()
+    if len(flat) > cap:
+        flat = flat[: cap - 1].rstrip() + "…"
+    return flat
+
+
 def _approval_gate(tool_name: str, args: dict | None = None, **kwargs) -> dict | None:
     """Escalate ``flowershop_decide_approval`` to Hermes' own human-approval gate.
 
     The chat relay is a convenience; the decision itself must still land in front
-    of the owner (\"agents propose, owner approves\"). Returning
-    ``{\"action\": \"approve\", \"message\": ...}`` makes Hermes show the owner a
+    of the owner ("agents propose, owner approves"). Returning
+    ``{"action": "approve", "message": ...}`` makes Hermes show the owner a
     confirmation before the tool runs. Fails closed: if the approval cannot be
     read, we STILL request approval with a generic message. Never raises.
     """
@@ -93,22 +109,33 @@ def _approval_gate(tool_name: str, args: dict | None = None, **kwargs) -> dict |
         args = dict(args or {})
         approval_id = args.get("approval_id")
         decision = str(args.get("decision") or "approve").lower()
+        rule_key = _rule_key(approval_id, decision)
         message = f"Flower Shop: {decision.upper()} approval #{approval_id}. Owner, confirm?"
         try:
             a = _approvals.get(get_store(), approval_id)
             if a:
+                summary = _sanitize_summary(a.get("summary"))
                 message = (f"Flower Shop: {decision.upper()} approval #{approval_id} \u2014 "
-                           f"{a.get('action', '')}: {str(a.get('summary') or '').strip()} "
+                           f"{_sanitize_summary(a.get('action'))}: {summary} "
                            f"Owner, confirm?")
         except Exception:  # noqa: BLE001 - fail closed with the generic message
             log.exception("approval gate could not read approval %r; escalating generically",
                           approval_id)
-        return {"action": "approve", "message": message,
-                "rule_key": "flower-shop-decide-approval"}
+        return {"action": "approve", "message": message, "rule_key": rule_key}
     except Exception:  # noqa: BLE001 - a hook must never raise
         log.exception("approval gate failed; escalating generically")
-        return {"action": "approve",
-                "message": "Flower Shop: an owner approval is required before deciding this."}
+        rule_key = None
+        try:
+            args = dict(args or {})
+            rule_key = _rule_key(args.get("approval_id"),
+                                 str(args.get("decision") or "approve").lower())
+        except Exception:  # noqa: BLE001 - fall back to no rule_key
+            rule_key = None
+        out = {"action": "approve",
+               "message": "Flower Shop: an owner approval is required before deciding this."}
+        if rule_key:
+            out["rule_key"] = rule_key
+        return out
 
 
 def register(ctx) -> None:

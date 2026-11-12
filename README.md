@@ -254,6 +254,10 @@ the acting department and creates an audit event.
   decision, approval ref, action and amount. The hook fails closed (an
   unreadable approval still ends up in the approval gate, never silently
   passed) and never raises.
+- **Global auto-approve modes bypass this gate.** Hermes' own blanket
+  auto-approve settings (e.g. `yolo` / always-approve-all) approve every
+  prompt, including this one, without asking — that is the owner's explicit
+  choice and overrides the plugin's per-call gate.
 - Read-only lookups and calculations run freely. Every write is audited with
   the acting department.
 

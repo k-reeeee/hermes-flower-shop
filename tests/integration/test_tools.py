@@ -377,6 +377,52 @@ def test_approval_gate_passes_other_tools():
     assert plugin._approval_gate(tool_name="anything_else") is None
 
 
+def test_approval_gate_rule_key_is_per_call(store):
+    """rule_key must be scoped to (approval_id, decision) so an "always"/"session"
+    click can never auto-approve a different approval or a different decision."""
+    plugin = _load_plugin_module()
+    ap1 = approvals.request(store, "record_expense",
+                            {"category": "supplies", "amount_minor": 1000,
+                             "description": "ribbon"},
+                            "agent:sales")
+    ap2 = approvals.request(store, "record_expense",
+                            {"category": "supplies", "amount_minor": 2000,
+                             "description": "vase"},
+                            "agent:sales")
+    d1 = plugin._approval_gate("flowershop_decide_approval",
+                               {"approval_id": ap1["id"], "decision": "approve"})
+    d2 = plugin._approval_gate("flowershop_decide_approval",
+                               {"approval_id": ap2["id"], "decision": "approve"})
+    d3 = plugin._approval_gate("flowershop_decide_approval",
+                               {"approval_id": ap1["id"], "decision": "reject"})
+    assert d1["rule_key"] == f"flower-shop-decide-approval:{ap1['id']}:approve"
+    # two different approval ids → different rule_keys
+    assert d1["rule_key"] != d2["rule_key"]
+    # same id, different decision → different rule_key
+    assert d1["rule_key"] != d3["rule_key"]
+    assert d3["rule_key"] == f"flower-shop-decide-approval:{ap1['id']}:reject"
+
+
+def test_approval_gate_message_sanitized_single_line(store):
+    """The message must collapse whitespace/newlines and stay short even when the
+    approval summary carries multi-line customer/model text."""
+    plugin = _load_plugin_module()
+    long_summary = ("customer:  Ada Lovelace\n"
+                    "model:     peony & ranunculus wedding centrepiece\n"
+                    "note:      " + "x" * 200)
+    ap = approvals.request(store, "record_expense",
+                           {"category": "supplies", "amount_minor": 1000,
+                            "description": long_summary},
+                           "agent:sales")
+    d = plugin._approval_gate("flowershop_decide_approval",
+                              {"approval_id": ap["id"], "decision": "approve"})
+    msg = d["message"]
+    assert "\n" not in msg
+    assert "\r" not in msg
+    assert len(msg) <= 260
+    assert "Owner, confirm?" in msg
+
+
 def test_approval_gate_fails_closed_on_unknown_id(store):
     plugin = _load_plugin_module()
     d = plugin._approval_gate(tool_name="flowershop_decide_approval",
