@@ -60,6 +60,7 @@ pasted verbatim (note the informational `◆ Isolation` line — the plugin runs
 plugin host, which is expected and not an error):
 
 ```
+
 ✓ manifest — plugin.yaml parses
 ✓ manifest fields — name, version, description present
 ✓ requires_hermes — spec '>=0.22.0' parses
