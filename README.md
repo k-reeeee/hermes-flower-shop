@@ -228,12 +228,73 @@ A gated tool call does not perform the action. It creates a PENDING approval and
 returns a directive. The agent shows the directive on its own line in chat, so
 Desktop renders a live card with **Approve** and **Reject** buttons. The owner
 can also decide from the Approvals inbox, or say yes in chat — that relay is
-allowed only when the `chat_approvals` setting is enabled and the tool call
-quotes the owner's exact words. Every decision is recorded as the owner, with a
+allowed only when the `chat_approvals` setting is enabled (it is **off by
+default**) and the tool call quotes the owner's exact words; every relayed
+decision still lands in Hermes' own approval gate for an explicit confirm (see
+[Safety model](#safety-model)). Every decision is recorded as the owner, with a
 note.
 
 Read-only lookups and calculations run without approval. Every write identifies
 the acting department and creates an audit event.
+
+## Safety model
+
+**Agents propose, the owner approves — everywhere, including chat.**
+
+- Every gated action (order confirm/cancel, stock receipt/adjustment/wastage,
+  payment, expense) creates a **PENDING approval**; nothing executes from the
+  agent alone. The owner approves with a click on the chat card or the
+  Approvals inbox.
+- **Chat relay is off by default.** `chat_approvals` defaults to `false`, so
+  `flowershop_decide_approval` is refused and decisions only happen through the
+  Desktop Approve / Reject buttons. Enabling it lets the owner say "yes" in
+  chat — but even then the decision itself is escalated to **Hermes' own
+  human-approval gate**: the plugin registers a `pre_tool_call` hook that
+  escalates `flowershop_decide_approval` to a host-level confirm naming the
+  decision, approval ref, action and amount. The hook fails closed (an
+  unreadable approval still ends up in the approval gate, never silently
+  passed) and never raises.
+- Read-only lookups and calculations run freely. Every write is audited with
+  the acting department.
+
+## Design assets
+
+Bouquet images and design references are **files in the plugin's uploads
+folder** — the plugin only ever records and serves files from there.
+
+| Topic | Rule |
+|---|---|
+| Where the folder is | `<HERMES_HOME>/plugin-data/flower-shop/uploads` — i.e. `~/.hermes/plugin-data/flower-shop/uploads` on Linux/macOS, `%USERPROFILE%\.hermes\plugin-data\flower-shop\uploads` on Windows. Open it with your file manager. |
+| Naming | `<order#>-<short-desc>.<ext>` — e.g. `FS-1042-peony-ref.jpg`. |
+| Allowed types / size | `.png` `.jpg` `.jpeg` `.webp` `.gif`; keep each file at or under **10 MB**. |
+| One folder per shop | Single-shop plugin: everything lives in that one `uploads/` folder, not one folder per order. |
+| Backup | Copy `uploads/` **together with** `flowershop.db` — the database holds the references, the folder holds the bytes. |
+| Never point at personal folders | Do not reference `Desktop/`, `Downloads/` or any folder outside `uploads/`; the plugin rejects those paths and tells you where to put the file instead. |
+| Deleting a file | Breaks the reference: the order page then shows the image as missing. |
+
+The agent never writes into `uploads/` itself: it has no copy-in path, and its
+tool schema tells it to **ask the owner to add the image** to the uploads
+folder when a referenced file is not there.
+
+## The AI team is optional
+
+Setup ends with an optional team step. **You can run the whole shop with one
+assistant and add team members later anytime.** The agent only *suggests*
+assistant names — free-form, e.g. `sales`, `florist`, `delivery` (the bundled
+`flower-shop-<department>` profiles are just an example) — and records them as
+`suggested`. It never creates Hermes profiles itself. Real profiles are made
+by you on the Desktop **Setup → Assistant profiles** step (the **Create**
+button) or from a terminal:
+
+```bash
+hermes profile create sales
+hermes profile create florist
+```
+
+Example prompts for the chat:
+
+- "Suggest a team for my shop"
+- "Create profiles: sales, florist, delivery as a team to handle weekend orders"
 
 ## Data and privacy
 

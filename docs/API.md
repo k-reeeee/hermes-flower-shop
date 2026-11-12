@@ -309,7 +309,7 @@ Every tool:
 | `flowershop_propose_payment` | **approval** | approvals.request(record_payment) |
 | `flowershop_propose_expense` | **approval** | approvals.request(record_expense) |
 | `flowershop_list_approvals` | read | approvals.list |
-| `flowershop_decide_approval` | write: owner-relayed | approvals.approve/reject. Allowed only when the `chat_approvals` setting is true **and** `owner_statement` quotes the owner's explicit confirmation. Recorded as actor `owner(chat)` |
+| `flowershop_decide_approval` | write: owner-relayed | approvals.approve/reject. Allowed only when the `chat_approvals` setting is true (default **false**) **and** `owner_statement` quotes the owner's explicit confirmation. The plugin's `pre_tool_call` hook escalates this tool to Hermes' own human-approval gate, so even when enabled the owner confirms with an explicit approval. Recorded as actor `owner(chat)` |
 | `flowershop_attach_design_reference` | write (direct) | studio.attach |
 
 Approval-gated tools never mutate business records. They create a PENDING Approval, return its

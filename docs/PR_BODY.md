@@ -24,7 +24,10 @@ chat card, the inbox, or an explicit chat relay.
 receiving/adjusting/writing off stock, and recording a payment or expense never
 execute from an agent alone: the gated tool creates a PENDING approval and the
 agent renders a directive that Desktop turns into an Approve / Reject card. The
-chat relay is setting-gated and must quote the owner's exact words.
+chat relay is setting-gated (`chat_approvals`, **off by default**) and must quote
+the owner's exact words; a plugin `pre_tool_call` hook escalates the relayed
+decision to Hermes' own human-approval gate, so the owner always confirms with an
+explicit approval.
 
 ## Disclosure (rule 13)
 
@@ -42,8 +45,11 @@ chat relay is setting-gated and must quote the owner's exact words.
 
 ## Capabilities (rule 6)
 
-The entry declares all 39 `flowershop_*` tools as `provides_tools`, with empty
-`provides_hooks`, `provides_middleware` and `requires_env` — matching what
+The entry declares all 39 `flowershop_*` tools as `provides_tools`, plus one
+hook (`provides_hooks: ["pre_tool_call"]`) — the approval-gate hook that
+escalates `flowershop_decide_approval` to Hermes' own human-approval gate (see
+the Safety model in the README; `chat_approvals` is **off by default**).
+`provides_middleware` and `requires_env` stay empty — matching what
 `register()` actually registers at the pinned commit. Money is integer minor
 units plus an ISO currency, never floats.
 

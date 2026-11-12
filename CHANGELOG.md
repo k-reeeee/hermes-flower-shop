@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased — teknium review fixes (PR #153762)
+
+- **`flowershop_create_bot` no longer creates Hermes profiles.** It records a SUGGESTED
+  assistant team (`status: "suggested"`, free-form names — the `flower-shop-<department>`
+  profiles are only an example) and returns the exact `hermes profile create <name>`
+  command per bot. No `hermes_cli` import anywhere; real profiles are created by the owner
+  (Desktop Assistant profiles step, Create button).
+- **Desktop Assistant profiles step is optional and suggestion-driven.** Agent-suggested
+  bots render as editable name+purpose rows (remove/rename, add rows); no hard-coded
+  five-department default; when nothing is suggested it shows one "Shop assistant" starter
+  row plus an "Ask Hermes: Suggest a team for my shop" chip with a copyable example prompt.
+  `profiles.create` runs only from the owner-clicked Create button (per row), then records
+  created/error. Skip kept.
+- **`chat_approvals` now defaults to `false`** (code + plugin.yaml). The in-chat relay is
+  refused unless the owner enables it.
+- **New `pre_tool_call` approval-gate hook.** `flowershop_decide_approval` is escalated to
+  Hermes' own human-approval gate with a message naming decision, approval ref, action and
+  amount; fails closed on lookup errors, returns None for all other tools, never raises.
+- **Design assets are confined to the plugin's uploads folder** (`<plugin data dir>/uploads`,
+  created on demand, overridable via `FLOWERSHOP_UPLOADS_DIR`). `attach` resolves symlinks
+  and rejects anything outside uploads (clear "Put the image in …" message); bare filenames
+  resolve inside; `image_path` re-checks containment at serve time (old rows outside →
+  NotFound). New owner-facing `import_into_uploads(src)` helper (not a model tool).
+- **Docs:** README gains "Safety model", "Design assets" (per-OS folder location, naming
+  convention `<order#>-<short-desc>.<ext>`, types + ≤10 MB, one folder per shop, backup with
+  the DB, no personal folders, deleted-file behaviour) and "The AI team is optional"
+  (suggestion-driven, example prompts). API.md, ONBOARDING.md, PR_BODY.md and the
+  catalog-entry draft updated to match.
+
 ## Unreleased — design kit v1 + Anthousa theme
 
 - **Demo data is now international by default.** `seed_demo(locale=...)` ships two datasets — an
