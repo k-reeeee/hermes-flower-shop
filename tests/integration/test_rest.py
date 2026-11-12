@@ -133,6 +133,17 @@ def test_inventory_and_recipes_readonly_via_rest(store, client):
     assert r.status_code == 200
 
 
+def test_rest_create_item_sets_opening_stock_directly(store, client):
+    """The owner's REST path keeps direct opening stock (no approval)."""
+    r = _pc(client, "/inventory", sku="REST-OPEN", name="REST Opening Rose", category="flower",
+            unit="stem", quantity_on_hand=40, average_unit_cost_minor=7000)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["quantity_on_hand"] == 40  # opening stock landed immediately
+    assert body["average_unit_cost_minor"] == 7000
+    assert approvals.list_approvals(store, "PENDING")["items"] == []
+
+
 def test_team_floor_audit(store, client):
     for path in ("/team", "/floor", "/audit", "/approvals"):
         r = _get(client, path)

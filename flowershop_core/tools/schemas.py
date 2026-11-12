@@ -341,8 +341,10 @@ SCHEMAS: dict[str, dict] = {
     "flowershop_create_inventory_item": {
         "name": "flowershop_create_inventory_item",
         "description": "Create a new inventory item (sku, name, category, unit, average_unit_cost_minor, "
-                       "reorder_threshold, supplier, freshness_window_days, optional opening quantity). Direct "
-                       "and audited. " + _MONEY,
+                       "reorder_threshold, supplier, freshness_window_days). The item is created with "
+                       "zero stock; if quantity_on_hand is given it is treated as an *opening stock* "
+                       "proposal and a PENDING stock-receipt approval is filed for the owner — stock "
+                       "lands only after the owner approves it. Direct and audited. " + _MONEY,
         "parameters": {"type": "object", "properties": {
             "sku": {"type": "string", "description": "Unique SKU, e.g. ROSE-RED."},
             "name": {"type": "string"},
@@ -352,7 +354,10 @@ SCHEMAS: dict[str, dict] = {
             "reorder_threshold": {"type": "number"},
             "supplier": {"type": "string"},
             "freshness_window_days": {"type": "integer"},
-            "quantity_on_hand": {"type": "number", "description": "Optional opening stock."},
+            "quantity_on_hand": {"type": "number",
+                                 "description": "Optional opening stock. The item is created with 0 on hand and a "
+                                                "stock-receipt approval (reason \"opening stock\") is filed for the "
+                                                "owner; stock is received only after the owner approves."},
             "department": _dept("inventory"),
         }, "required": ["sku", "name"]},
     },

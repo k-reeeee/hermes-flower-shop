@@ -15,6 +15,7 @@ import logging
 from .. import get_store, hermes_env
 from ..errors import FlowerShopError, InsufficientStock
 from ..services import approvals, delivery, finance, insights, inventory, onboarding, orders, production, profile, studio, theme
+from ..money import qty_to_milli
 from ..services.common import slugify_profile, valid_profile
 from .schemas import DEFAULT_DEPARTMENTS
 
@@ -394,12 +395,29 @@ def flowershop_update_order_draft(args: dict, **kwargs) -> str:
 def flowershop_create_inventory_item(args: dict, **kwargs) -> str:
     s = get_store()
     data = {k: v for k, v in list(args.items()) if k != "department"}
+    opening = data.get("quantity_on_hand") or data.get("opening_quantity")
+    if opening:
+        # Opening stock is value creation: the item is created at 0 and a
+        # stock-receipt approval is filed for the owner ("agents propose, owner approves").
+        qty_to_milli(opening, "quantity")  # validate before the item exists (atomic)
+        data = {k: v for k, v in list(data.items()) if k not in ("quantity_on_hand", "opening_quantity")}
     try:
         item = inventory.create_item(s, data, _actor(args, "flowershop_create_inventory_item"))
-        return _ok(item=item)
+        if not opening:
+            return _ok(item=item)
+        payload = {"inventory_item_id": item["id"], "quantity": opening, "reason": "opening stock"}
+        if data.get("supplier"):
+            payload["supplier"] = data["supplier"]
+        if data.get("average_unit_cost_minor"):
+            payload["unit_cost_minor"] = data["average_unit_cost_minor"]
+        a = approvals.request(s, "receive_stock", payload, _actor(args, "flowershop_create_inventory_item"),
+                              note="opening stock")
+        return _ok(item=item, pending_approval=a,
+                   next_step="Opening stock waits for the owner's approval on the Desktop card.")
     except FlowerShopError as e:
         return _error(e)
     except Exception as e:  # noqa: BLE001
+        log.exception("flowershop_create_inventory_item failed")
         return _internal(e)
 
 

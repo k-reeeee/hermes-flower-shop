@@ -191,6 +191,51 @@ def test_approval_gated_tool_creates_pending_and_mutates_nothing(store):
     assert final["average_unit_cost_minor"] == (10 * 1000 + 5 * 2000) // 15  # 1333
 
 
+def test_create_inventory_item_with_opening_stock_files_approval(store):
+    d = call("flowershop_create_inventory_item",
+             {"sku": "OPEN-ROSE", "name": "Opening Rose", "category": "flower", "unit": "stem",
+              "quantity_on_hand": 25, "average_unit_cost_minor": 5000, "department": "inventory"})
+    assert d["ok"] is True
+    assert d["item"]["sku"] == "OPEN-ROSE"
+    assert d["item"]["quantity_on_hand"] == 0  # the tool never lands stock directly
+    ap = d["pending_approval"]
+    assert ap["status"] == "PENDING" and ap["action"] == "receive_stock"
+    assert ap["payload"]["quantity"] == 25
+    assert ap["payload"]["reason"] == "opening stock"
+    assert ap["payload"]["unit_cost_minor"] == 5000
+    assert d["next_step"] == "Opening stock waits for the owner's approval on the Desktop card."
+
+    # exactly one pending approval for that item, stock still 0
+    pend = approvals.list_approvals(store, "PENDING")["items"]
+    mine = [a for a in pend if a["entity_type"] == "inventory" and a["entity_id"] == d["item"]["id"]]
+    assert len(mine) == 1
+    assert inventory.get_item(store, d["item"]["id"])["quantity_on_hand"] == 0
+
+    # owner approval lands the opening stock
+    approvals.approve(store, ap["id"], "owner")
+    final = inventory.get_item(store, d["item"]["id"])
+    assert final["quantity_on_hand"] == 25
+    assert final["average_unit_cost_minor"] == 5000
+
+
+def test_create_inventory_item_opening_quantity_alias_files_approval(store):
+    d = call("flowershop_create_inventory_item",
+             {"sku": "OPEN-LILY", "name": "Opening Lily", "opening_quantity": 7, "department": "inventory"})
+    assert d["ok"] is True
+    assert d["item"]["quantity_on_hand"] == 0
+    assert d["pending_approval"]["payload"]["quantity"] == 7
+    assert d["pending_approval"]["payload"]["reason"] == "opening stock"
+
+
+def test_create_inventory_item_without_opening_stock_is_direct(store):
+    d = call("flowershop_create_inventory_item",
+             {"sku": "PLAIN-ROSE", "name": "Plain Rose", "department": "inventory"})
+    assert d["ok"] is True
+    assert d["item"]["quantity_on_hand"] == 0
+    assert "pending_approval" not in d
+    assert approvals.list_approvals(store, "PENDING")["items"] == []
+
+
 def test_confirm_approval_gated_and_then_approved(store):
     item = make_item(store, sku="CONFIRM-ROSE", qty=80)
     rec = make_recipe(store, item["sku"], qty_per_unit=24)
