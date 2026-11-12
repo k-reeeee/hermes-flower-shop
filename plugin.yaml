@@ -51,6 +51,6 @@ provides_tools:
 config_schema:
   chat_approvals:
     type: bool
-    default: true
+    default: false
     label: "Allow approvals relayed in chat"
-    description: "When enabled, the owner can approve or reject pending approvals from the chat (and the /flowershop agent relays the decision). When off, decisions only happen through the desktop Approve/Reject buttons."
+    description: "Off by default. When enabled, the owner can approve or reject pending approvals from the chat (the /flowershop agent relays the decision). Either way the decision itself is escalated to Hermes' own human-approval gate for the owner's explicit confirm. When off, chat decisions are refused and only the desktop Approve/Reject buttons work."

@@ -258,3 +258,131 @@ def test_decide_approval_requires_owner_statement(store):
     ap = _make_pending_confirm(store)
     d = call("flowershop_decide_approval", {"approval_id": ap, "decision": "approve"})
     assert d["ok"] is False and d["error"] == "validation_error"
+
+
+# ---------------------------------------------------------------------------
+# pre_tool_call approval gate (plugin __init__.py)
+# ---------------------------------------------------------------------------
+
+def _load_plugin_module():
+    """Load the repo-root plugin __init__.py the way Hermes loads it (by path)."""
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parent.parent.parent / "__init__.py"
+    spec = importlib.util.spec_from_file_location("flower_shop_plugin_under_test", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("could not build import spec for plugin __init__.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class _FakeCtx:
+    """Minimal Hermes ctx: records hooks/tools and returns settings defaults."""
+
+    def __init__(self):
+        self.hooks = []
+        self.tool_names = []
+
+    def get_config(self, key, default=None):
+        return default
+
+    def register_tool(self, name, **kw):
+        self.tool_names.append(name)
+
+    def register_skill(self, *a, **kw):
+        pass
+
+    def register_command(self, *a, **kw):
+        pass
+
+    def register_hook(self, event, cb):
+        self.hooks.append((event, cb))
+
+
+def test_plugin_chat_approvals_defaults_off_and_hook_registered(store):
+    """register() must default chat_approvals OFF (tool refused) and wire the
+    pre_tool_call hook."""
+    plugin = _load_plugin_module()
+    ctx = _FakeCtx()
+    try:
+        plugin.register(ctx)
+        assert handlers.CHAT_APPROVALS is False
+        assert any(ev == "pre_tool_call" for ev, _ in ctx.hooks)
+        gate = dict(ctx.hooks)["pre_tool_call"]
+        assert callable(gate)
+        # tool refused by default, even with a valid owner statement
+        ap = _make_pending_confirm(store)
+        d = call("flowershop_decide_approval",
+                 {"approval_id": ap, "decision": "approve", "owner_statement": "yes"})
+        assert d["ok"] is False and d["error"] == "chat_approvals_disabled"
+        assert approvals.get(store, ap)["status"] == "PENDING"
+    finally:
+        handlers.CHAT_APPROVALS = True
+
+
+class _NoHookCtx:
+    """Minimal Hermes ctx WITHOUT register_hook (older surface)."""
+
+    def __init__(self):
+        self.hooks = []
+
+    def get_config(self, key, default=None):
+        return default
+
+    def register_tool(self, name, **kw):
+        pass
+
+    def register_skill(self, *a, **kw):
+        pass
+
+    def register_command(self, *a, **kw):
+        pass
+
+
+def test_plugin_register_survives_ctx_without_register_hook(store):
+    """An older ctx without register_hook must not break registration."""
+    plugin = _load_plugin_module()
+    ctx = _NoHookCtx()
+    try:
+        plugin.register(ctx)
+        assert handlers.CHAT_APPROVALS is False
+        assert ctx.hooks == []
+    finally:
+        handlers.CHAT_APPROVALS = True
+
+
+def test_approval_gate_escalates_decide_approval(store):
+    plugin = _load_plugin_module()
+    ap = approvals.request(store, "record_expense",
+                           {"category": "supplies", "amount_minor": 150000,
+                            "description": "satin ribbon"},
+                           "agent:sales", note="weekend restock")
+    d = plugin._approval_gate(tool_name="flowershop_decide_approval",
+                              args={"approval_id": ap["id"], "decision": "approve"})
+    assert d and d["action"] == "approve"
+    assert d["message"].startswith("Flower Shop: APPROVE approval #" + str(ap["id"]))
+    assert "record_expense" in d["message"]
+    assert "150" in d["message"]  # the summary carries the amount
+    assert "Owner, confirm?" in d["message"]
+    # nothing decided by the hook itself
+    assert approvals.get(store, ap["id"])["status"] == "PENDING"
+
+
+def test_approval_gate_passes_other_tools():
+    plugin = _load_plugin_module()
+    assert plugin._approval_gate(tool_name="flowershop_list_orders", args={}) is None
+    assert plugin._approval_gate(tool_name="flowershop_get_briefing", args=None) is None
+    assert plugin._approval_gate(tool_name="anything_else") is None
+
+
+def test_approval_gate_fails_closed_on_unknown_id(store):
+    plugin = _load_plugin_module()
+    d = plugin._approval_gate(tool_name="flowershop_decide_approval",
+                              args={"approval_id": 999999, "decision": "reject"})
+    assert d and d["action"] == "approve"  # escalated, never passed through
+    assert "Flower Shop: REJECT approval #999999. Owner, confirm?" in d["message"]
+    # never raises on garbage input either
+    assert plugin._approval_gate(tool_name="flowershop_decide_approval",
+                                 args="garbage")["action"] == "approve"

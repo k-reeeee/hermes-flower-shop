@@ -27,6 +27,7 @@ if str(_REPO_ROOT) not in sys.path:
 from flowershop_core import get_store  # noqa: E402
 from flowershop_core.events import install_hermes_broadcaster  # noqa: E402
 from flowershop_core.services import insights  # noqa: E402
+from flowershop_core.services import approvals as _approvals  # noqa: E402
 import flowershop_core.tools as tools  # noqa: E402
 from flowershop_core.tools import handlers as _handlers  # noqa: E402
 
@@ -77,10 +78,53 @@ def _command_flowershop(raw_args: str, **kwargs) -> str:
     return _briefing_text()
 
 
+def _approval_gate(tool_name: str, args: dict | None = None, **kwargs) -> dict | None:
+    """Escalate ``flowershop_decide_approval`` to Hermes' own human-approval gate.
+
+    The chat relay is a convenience; the decision itself must still land in front
+    of the owner (\"agents propose, owner approves\"). Returning
+    ``{\"action\": \"approve\", \"message\": ...}`` makes Hermes show the owner a
+    confirmation before the tool runs. Fails closed: if the approval cannot be
+    read, we STILL request approval with a generic message. Never raises.
+    """
+    try:
+        if tool_name != "flowershop_decide_approval":
+            return None
+        args = dict(args or {})
+        approval_id = args.get("approval_id")
+        decision = str(args.get("decision") or "approve").lower()
+        message = f"Flower Shop: {decision.upper()} approval #{approval_id}. Owner, confirm?"
+        try:
+            a = _approvals.get(get_store(), approval_id)
+            if a:
+                message = (f"Flower Shop: {decision.upper()} approval #{approval_id} \u2014 "
+                           f"{a.get('action', '')}: {str(a.get('summary') or '').strip()} "
+                           f"Owner, confirm?")
+        except Exception:  # noqa: BLE001 - fail closed with the generic message
+            log.exception("approval gate could not read approval %r; escalating generically",
+                          approval_id)
+        return {"action": "approve", "message": message,
+                "rule_key": "flower-shop-decide-approval"}
+    except Exception:  # noqa: BLE001 - a hook must never raise
+        log.exception("approval gate failed; escalating generically")
+        return {"action": "approve",
+                "message": "Flower Shop: an owner approval is required before deciding this."}
+
+
 def register(ctx) -> None:
     """Wire tools, skills, settings and the slash command into the Hermes registry."""
     # ---- settings ------------------------------------------------------------------
-    _handlers.CHAT_APPROVALS = _settings_flag(ctx, "chat_approvals", default=True)
+    _handlers.CHAT_APPROVALS = _settings_flag(ctx, "chat_approvals", default=False)
+
+    # ---- approval gate hook --------------------------------------------------------
+    # Escalate flowershop_decide_approval to Hermes' human-approval gate so no agent
+    # can decide an approval without a human confirm, even when chat relay is on.
+    register_hook = getattr(ctx, "register_hook", None)
+    if register_hook is not None:
+        try:
+            register_hook("pre_tool_call", _approval_gate)
+        except Exception:  # noqa: BLE001 - one failure must not disable the plugin
+            log.exception("failed to register pre_tool_call hook")
 
     # ---- tools ---------------------------------------------------------------------
     registered = 0
