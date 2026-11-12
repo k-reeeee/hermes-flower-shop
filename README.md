@@ -18,8 +18,12 @@ Requires **Hermes >= 0.22.0**.
 - **One source of truth.** Agents and the UI call the same service layer and
   the same SQLite database. No department keeps its own copy of the truth.
 - **The owner stays in control.** Consequential actions create a PENDING
-  approval. The owner approves from an inline chat card, the Approvals inbox, or
-  an explicit chat relay. Agents propose; the owner approves.
+  approval. The owner approves from an inline chat card or the Approvals inbox
+  (an opt-in chat relay exists, off by default, and Hermes still asks the owner
+  to confirm). Agents propose; the owner approves.
+- **Guided, optional setup.** A short onboarding walks through the business,
+  needs and team. The AI team is a *suggestion* — run everything with one
+  assistant, or create the suggested profiles yourself with one click.
 
 ## Screenshots
 
@@ -186,6 +190,14 @@ Read-only tools run freely; gated tools only create a pending approval.
 | `flowershop_team_playbook` | read | Roster, department rules, approval policy |
 | `flowershop_get_briefing` | read | Daily operational overview |
 | `flowershop_get_business_profile` | read | Profile and onboarding state |
+| `flowershop_get_onboarding` | read | Full setup state: beats, needs, fit, suggested team |
+| `flowershop_answer_onboarding` | write | Record the owner's answer to one setup step |
+| `flowershop_assess_fit` | read | How well the plugin covers this business, and any gaps |
+| `flowershop_recommend_team` | read | Recommended departments for the owner's needs |
+| `flowershop_create_bot` | write | Record a **suggested** assistant team — never creates Hermes profiles |
+| `flowershop_reset_onboarding` | write | Replay setup from the start (business data untouched) |
+| `flowershop_get_theme` | read | Bundled skins, which is installed / active |
+| `flowershop_choose_theme` | write | On the owner's choice, copy the bundled skin files into the skins folder — never activates a skin |
 | `flowershop_update_business_profile` | write | Change profile fields |
 | `flowershop_list_orders` | read | Order list |
 | `flowershop_get_order` | read | Order detail |
@@ -197,7 +209,7 @@ Read-only tools run freely; gated tools only create a pending approval.
 | `flowershop_request_order_cancellation` | approval | Cancel an order |
 | `flowershop_list_inventory` | read | Stock list |
 | `flowershop_get_inventory_item` | read | One item + movements |
-| `flowershop_create_inventory_item` | write | New SKU |
+| `flowershop_create_inventory_item` | write + approval | New SKU at 0; any opening stock becomes a stock-receipt approval |
 | `flowershop_propose_stock_receipt` | approval | Receive stock |
 | `flowershop_propose_stock_adjustment` | approval | Correct a count (reason required) |
 | `flowershop_propose_wastage` | approval | Record wastage (reason required) |
@@ -212,8 +224,8 @@ Read-only tools run freely; gated tools only create a pending approval.
 | `flowershop_propose_payment` | approval | Record a payment |
 | `flowershop_propose_expense` | approval | Record an expense |
 | `flowershop_list_approvals` | read | Approval queue |
-| `flowershop_decide_approval` | owner-relayed | Approve/reject from chat, quoting the owner |
-| `flowershop_attach_design_reference` | write | Attach a bouquet image to an order |
+| `flowershop_decide_approval` | opt-in relay | Approve/reject from chat — refused unless `chat_approvals` is on (off by default); Hermes asks the owner to confirm every call |
+| `flowershop_attach_design_reference` | write | Attach a bouquet image from the uploads folder to an order |
 
 ## Approvals
 
@@ -311,15 +323,21 @@ Example prompts for the chat:
   `<HERMES_HOME>/plugin-data/flower-shop/flowershop.db`.
 - The plugin makes **no network calls**, sends **no telemetry**, and stores **no
   credentials**.
-- It runs **no shell commands** and reads nothing outside its own data directory.
+- It runs **no shell commands** at runtime. It reads and writes only its own
+  data directory — the one exception is the optional theme: when you choose it,
+  the skin files are copied into `<hermes home>/skins` (see
+  [Disclosures](#disclosures)).
 - Demo data is marked as demo and can be cleared from the workspace.
 
 ## Disclosures
 
-- **No network calls.** The plugin talks to nothing outside the machine; all
-  reads and writes are local to its own data directory (SQLite at
+- **No network calls.** The plugin talks to nothing outside the machine. Its
+  business data stays in its own data directory (SQLite at
   `plugin-data/flower-shop/flowershop.db`, plus `uploads/` for design
   references).
+- **Two read-only peeks at Hermes, for the theme step only.** It lists
+  `<hermes home>/skins` and reads the active `display.skin` value (read-only
+  config load). It never edits `config.yaml`.
 - **No telemetry.** Nothing is sent anywhere.
 - **Optional theme is opt-in and never self-activates.** When the owner
   chooses the bundled Anthousa skins during onboarding, the plugin copies the

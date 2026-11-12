@@ -18,7 +18,7 @@ record of orders, stock, production, deliveries and money. The owner follows the
 work on a native Desktop workspace — Overview, Orders, Inventory + recipes,
 Production board, a read-only low-poly 3D Shop Floor, Delivery, Finance, AI Team
 and an Approvals inbox — and approves every consequential action from an inline
-chat card, the inbox, or an explicit chat relay.
+chat card or the inbox (an opt-in chat relay exists, off by default).
 
 **Agents propose; the owner approves.** Confirming or cancelling an order,
 receiving/adjusting/writing off stock, and recording a payment or expense never
@@ -35,10 +35,16 @@ explicit approval.
   no third-party services. Telemetry is not merely opt-in; it does not exist.
 - **No stored credentials, no `requires_env`, no `oauth:`.** Nothing to declare
   and nothing read from `.env`, `auth.json` or any other credential store.
-- **No shell commands.** No `subprocess`, no child processes.
-- **No reads outside its own data.** All business data lives in one SQLite
-  database at `<HERMES_HOME>/plugin-data/flower-shop/flowershop.db`; the plugin
-  reads nothing else on disk.
+- **No shell commands at runtime.** No `subprocess`, no child processes in the
+  plugin. The only script that spawns anything is the dev-only
+  `theme/make-preview.py` (headless Chrome, to render the checked-in preview PNGs);
+  the plugin never runs it.
+- **Data stays in its own directory.** All business data lives in one SQLite
+  database at `<HERMES_HOME>/plugin-data/flower-shop/flowershop.db`, with design
+  images confined to `uploads/` beside it. Outside that, only the optional theme
+  step touches Hermes: it lists `<HERMES_HOME>/skins`, reads `display.skin`
+  read-only, and — only when the owner picks the theme — copies the two bundled
+  skin YAMLs into `skins/`. It never edits `config.yaml` or switches the skin.
 - **No long-running background processes.** The dashboard half is a thin REST
   bridge served by the plugin host; the Desktop half is static JS.
 - **Finance figures are operational estimates**, not an accounting ledger.

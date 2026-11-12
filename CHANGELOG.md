@@ -2,6 +2,12 @@
 
 ## Unreleased — teknium review fixes (PR #153762)
 
+- **Docs only (README, PR body):** the tool table now lists all 39 tools (the 8
+  onboarding/theme tools were missing, including `flowershop_create_bot`). The chat relay
+  is described as opt-in and off by default everywhere. The disclosures now name the theme
+  step's read-only peek at `<hermes home>/skins` and `display.skin`, and say "no shell
+  commands" applies at runtime (`theme/make-preview.py` is dev-only).
+
 - **`flowershop_create_bot` no longer creates Hermes profiles.** It records a SUGGESTED
   assistant team (`status: "suggested"`, free-form names — the `flower-shop-<department>`
   profiles are only an example) and returns the exact `hermes profile create <name>`
