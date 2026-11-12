@@ -34529,14 +34529,15 @@ var OPENING_PROMPT = [
   "3. Ask what I need help with -> show the ::flowershop-onboarding-needs{} card",
   "4. Explain how Flower Shop fits -> show the ::flowershop-onboarding-fit{} card",
   "5. Recommend my team -> show the ::flowershop-onboarding-team{} card",
-  "6. Offer to create bot profiles -> show the ::flowershop-onboarding-bots{} card",
+  "6. Propose a suggested assistant team (optional) -> show the ::flowershop-onboarding-bots{} card",
   "7. Run the fit / custom-plugin assessment",
   "8. Give my first daily briefing",
   "",
   "Rules:",
   "- Use the flowershop_* tools for every write; they are the one record of truth.",
   "- Put each card directive on its own line so the Desktop renders it.",
-  "- Every consequential action (creating bot profiles, recording money, changing stock) needs my explicit approval first - propose, do not do."
+  "- Every consequential action (recording money, changing stock) needs my explicit approval first - propose, do not do.",
+  "- Never create Hermes profiles yourself. Propose assistant names as suggestions; I create the real profiles on the Desktop Team step."
 ].join("\n");
 var WELCOME_TITLE = "Flower Shop - set up your business";
 var TYPES2 = [{ value: "florist", label: "Florist" }, { value: "flower_stand", label: "Flower stand" }, { value: "event_florist", label: "Event and wedding florist" }, { value: "other", label: "Other" }];
@@ -34673,55 +34674,102 @@ function TeamEditor({ data }) {
     ids.map((id) => h("div", { key: id, className: "fs-setup-row" }, h("div", { style: { minWidth: 0 } }, h("div", { style: txt(13, C.t1, { fontWeight: 500 }) }, DEPT_LABEL[id]), h("div", { style: txt(12, C.t3) }, DEPT_DESC[id])), h(Switch2, { checked: on(id), onCheckedChange: () => toggle(id), "aria-label": "Enable " + DEPT_LABEL[id] })))
   );
 }
+var EXAMPLE_TEAM_PROMPT = "Create profiles: sales, florist, delivery as a team to handle weekend orders";
+var BOT_PLACEHOLDER = "Assistant name";
 function BotsEditor({ data, q }) {
   const act = useAct();
   const [busy, setBusy] = useState15(false);
   const [confirm, setConfirm] = useState15(false);
-  const existing = data.bots || [];
-  const createClients = async () => {
+  const [rows, setRows] = useState15(null);
+  const seed = () => {
+    const known = data.bots || [];
+    const suggested = known.filter((b) => !b.status || b.status === "suggested");
+    if (suggested.length) return suggested.map((b) => ({ name: b.name || "", purpose: b.purpose || "", status: "suggested" }));
+    const done = known.filter((b) => b.status === "created" || b.status === "error");
+    if (done.length) return done.map((b) => ({ name: b.name || "", purpose: b.purpose || "", status: b.status }));
+    return [{ name: "Shop assistant", purpose: "", status: "" }];
+  };
+  useEffect7(() => {
+    if (rows === null) setRows(seed());
+  }, [data]);
+  const cur = rows === null ? seed() : rows;
+  const fresh = cur.every((b) => b.status !== "created" && b.status !== "error");
+  const empty = (data.bots || []).length === 0;
+  const setRow = (i, patch) => setRows((r) => r.map((x, k) => k === i ? { ...x, ...patch } : x));
+  const removeRow = (i) => setRows((r) => r.filter((_, k) => k !== i));
+  const createAll = async () => {
     setBusy(true);
     try {
-      const deps = data.profile && data.profile.enabled_departments || ["sales", "inventory", "production", "finance", "logistics"];
-      const bots = deps.map((id) => ({ name: DEPT_LABEL[id] + " assistant", profile: "flower-shop-" + id, purpose: DEPT_DESC[id] }));
-      const created = [];
-      for (const b of bots) {
+      const results = [];
+      for (const b of cur) {
+        if (!b.name || !b.name.trim()) continue;
+        const name = b.name.trim();
+        const purpose = (b.purpose || "").trim();
         try {
           const res = await host4.request("profiles.create", {
-            name: b.name,
-            description: "Flower Shop " + DEPT_LABEL[b.profile.replace("flower-shop-", "")] + " assistant - " + b.purpose,
+            name,
+            description: "Flower Shop " + name + " assistant" + (purpose ? " - " + purpose : ""),
             no_alias: true,
             no_skills: false
           });
-          created.push({ ...b, status: "created", profile_id: res && (res.profile_id || res.id || res.name) });
+          results.push({ name, purpose, status: "created", profile_id: res && (res.profile_id || res.id || res.name) });
         } catch (e) {
-          created.push({ ...b, status: "error", error: e && e.message || "create failed" });
+          results.push({ name, purpose, status: "error", error: e && e.message || "create failed" });
         }
       }
-      await act.mutateAsync({ path: "/onboarding/beat", body: { beat: "bots", answer: created } });
-      toast("success", created.some((b) => b.status === "created") ? "Bot profiles created" : "Bots recorded without profile creation");
+      await act.mutateAsync({ path: "/onboarding/beat", body: { beat: "bots", answer: results } });
+      setRows(results);
+      setConfirm(false);
+      toast("success", results.some((x) => x.status === "created") ? "Assistant profiles created - recorded on your team" : "No profiles were created - check the errors");
     } catch (e) {
-      toast("error", e && e.message || "Could not create bot profiles.");
+      toast("error", e && e.message || "Could not create assistant profiles.");
     } finally {
       setBusy(false);
-      setConfirm(false);
+    }
+  };
+  const copyExample = () => {
+    try {
+      navigator.clipboard.writeText(EXAMPLE_TEAM_PROMPT);
+      toast("success", "Example prompt copied - paste it into the chat");
+    } catch (e) {
+      toast("error", "Could not copy - select the text manually");
     }
   };
   return h(
     "div",
     { className: "fs-page-stack", style: { gap: 8 } },
-    h("div", { style: txt(12, C.t2) }, "Create separate AI assistant profiles (Hermes profiles) for your team. Each is its own assistant - the Manager coordinates the rest and always asks you before changing an order, stock or money."),
-    existing.length ? h("div", { className: "fs-page-stack", style: { gap: 4, borderTop: "1px solid " + C.line, paddingTop: 8 } }, existing.map((b, k) => h("div", { key: k, style: row(8, { justifyContent: "space-between" }) }, h("span", { style: txt(12, C.t1) }, b.name || (b.profile || "")), h(Pill, { tone: b.status === "created" ? "ok" : b.status === "error" ? "bad" : "info" }, b.status || "recorded")))) : h(Muted, null, "No assistant profiles yet."),
-    h("div", { className: "fs-btnrow" }, h(Button13, { disabled: busy, onClick: () => setConfirm(true) }, busy ? "Creating profiles\\u2026" : "Create assistant profiles"), h(Button13, { variant: "ghost", onClick: async () => {
-      const r = await runAct(act, { path: "/onboarding/beat", body: { beat: "bots", answer: [{ name: "Skip bots", profile: "none", purpose: "owner chose to skip", status: "skipped" }] } }, "Bots skipped");
+    h("div", { style: txt(12, C.t2, { lineHeight: 1.5 }) }, "Optional. You can run the whole shop with one assistant and add a team later anytime. Rows below are suggestions - nothing is created on this machine until you press Create."),
+    h(
+      "div",
+      { className: "fs-page-stack", style: { gap: 4, borderTop: "1px solid " + C.line, paddingTop: 8 } },
+      cur.map((b, i) => h(
+        "div",
+        { key: i, style: row(8, { alignItems: "center", flexWrap: "wrap" }) },
+        h(Input7, { value: b.name, onChange: (e) => setRow(i, { name: e.target.value }), placeholder: BOT_PLACEHOLDER, "aria-label": "Assistant name", style: { flex: "0 0 220px" } }),
+        h(Input7, { value: b.purpose || "", onChange: (e) => setRow(i, { purpose: e.target.value }), placeholder: "What they do (optional)", "aria-label": "Assistant purpose", style: { flex: 1, minWidth: 160 } }),
+        b.status === "created" ? h(Pill, { tone: "ok" }, "created") : b.status === "error" ? h(Pill, { tone: "bad" }, "error") : b.status === "suggested" ? h(Pill, { tone: "info" }, "suggested") : null,
+        h(Button13, { variant: "ghost", size: "sm", disabled: busy, onClick: () => removeRow(i) }, "Remove")
+      )),
+      h("div", { style: row(8) }, h(Button13, { variant: "outline", size: "sm", disabled: busy, onClick: () => setRows((r) => r.concat([{ name: "", purpose: "", status: "" }])) }, "Add assistant"))
+    ),
+    empty && fresh ? h(
+      "div",
+      { style: col(6) },
+      h("div", { style: row(6, { flexWrap: "wrap" }) }, h(Pill, { tone: "info" }, 'Ask Hermes: "Suggest a team for my shop"')),
+      h("div", { style: txt(11, C.t3, { lineHeight: 1.5 }) }, "Example prompt - click to copy:"),
+      h("div", { style: row(6) }, h(Input7, { readOnly: true, value: EXAMPLE_TEAM_PROMPT, onClick: (e) => e.target.select(), onFocus: (e) => e.target.select(), style: { flex: 1, minWidth: 200 } }), h(Button13, { variant: "outline", size: "sm", onClick: copyExample }, "Copy"))
+    ) : null,
+    h("div", { className: "fs-btnrow" }, h(Button13, { disabled: busy, onClick: () => setConfirm(true) }, busy ? "Creating profiles..." : "Create assistant profiles"), h(Button13, { variant: "ghost", disabled: busy, onClick: async () => {
+      const r = await runAct(act, { path: "/onboarding/beat", body: { beat: "bots", answer: [{ name: "Skip bots", status: "skipped" }] } }, "Bots skipped");
       if (!r) toast("error", "Could not skip.");
     } }, "Skip")),
     confirm ? h(Confirm, {
       open: true,
       onClose: () => setConfirm(false),
       title: "Create assistant profiles?",
-      description: "Each is a real Hermes profile on this machine. You can remove any of them later in the AI Team page.",
+      description: "Each row creates a real Hermes profile on this machine. You can remove any of them later in the AI Team page.",
       confirmLabel: "Create profiles",
-      onConfirm: createClients
+      onConfirm: createAll
     }) : null
   );
 }
