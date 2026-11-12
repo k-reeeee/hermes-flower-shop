@@ -352,4 +352,5 @@ hermes plugins validate .        # catalog admission gate
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). Bundled runtime dependencies are listed with
+their licences in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
